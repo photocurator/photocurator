@@ -1,0 +1,332 @@
+erDiagram
+    %% Core User Management
+    User ||--o| Subscription : "has"
+    User ||--o| UserStorageQuota : "has"
+    User ||--o| ShootingPattern : "has"
+    User ||--o{ Session : "has"
+    User ||--o{ Account : "has"
+    User ||--o{ Project : "owns"
+    User ||--o{ AnalysisJob : "creates"
+    User ||--o{ UserSearch : "performs"
+    User ||--o{ AdImpression : "views"
+
+    %% Authentication & Verification
+    User ||--o{ Verification : "requests"
+
+    %% Project Management
+    Project ||--o{ Image : "contains"
+    Project ||--o{ ImageGroup : "contains"
+    Project ||--o{ ProjectTag : "has"
+    Project ||--o{ AnalysisJob : "analyzed_by"
+    Project }o--|| Image : "cover_image"
+
+    %% Image Core
+    Image ||--o| ImageEXIF : "has"
+    Image ||--o| ImageGPS : "has"
+    Image ||--o| ImageSelection : "has"
+    Image ||--o| QualityScore : "has"
+    Image ||--o| BestShotRecommendation : "has"
+    Image ||--o{ ObjectTag : "tagged_with"
+    Image ||--o{ UserRejectionReason : "rejected_with"
+    Image ||--o{ ImageGroupMembership : "belongs_to"
+
+    %% Image Grouping (Many-to-Many)
+    ImageGroup ||--o{ ImageGroupMembership : "contains"
+    ImageGroup }o--|| Image : "representative"
+
+    %% Analysis System
+    AnalysisJob ||--o{ AnalysisJobItem : "contains"
+    AnalysisJobItem }o--|| Image : "analyzes"
+
+    %% Advertisement System
+    Advertisement ||--o{ AdTargetingRule : "has"
+    Advertisement ||--o{ AdImpression : "generates"
+    AdImpression }o--|| Project : "shown_in"
+
+    %% Entity Definitions
+    User {
+        UUID id PK
+        string name
+        string email
+        boolean emailVerified
+        string image
+        Date createdAt
+        Date updatedAt
+    }
+
+    Session {
+        UUID id PK
+        UUID userId FK
+        string token
+        Date expiresAt
+        string ipAddress
+        string userAgent
+        Date createdAt
+        Date updatedAt
+    }
+
+    Account {
+        UUID id PK
+        UUID userId FK
+        string accountId
+        string providerId
+        string accessToken
+        string refreshToken
+        Date accessTokenExpiresAt
+        Date refreshTokenExpiresAt
+        string scope
+        string idToken
+        string password
+        Date createdAt
+        Date updatedAt
+    }
+
+    Verification {
+        UUID id PK
+        string identifier
+        string value
+        Date expiresAt
+        Date createdAt
+        Date updatedAt
+    }
+
+    Subscription {
+        UUID subscription_id PK
+        UUID user_id FK
+        ENUM tier
+        Date start_date
+        Date end_date
+        boolean is_active
+        Date created_at
+        Date updated_at
+    }
+
+    UserStorageQuota {
+        UUID quota_id PK
+        UUID user_id FK
+        BIGINT limit_bytes
+        Date created_at
+        Date updated_at
+    }
+
+    Project {
+        UUID project_id PK
+        UUID user_id FK
+        string project_name
+        TEXT description
+        UUID cover_image_id FK
+        boolean is_archived
+        Date created_at
+        Date updated_at
+        Date archived_at
+    }
+
+    ProjectTag {
+        UUID project_tag_id PK
+        UUID project_id FK
+        string tag_name
+        Date created_at
+    }
+
+    Image {
+        UUID image_id PK
+        UUID project_id FK
+        string original_filename
+        string storage_path
+        string thumbnail_path
+        BIGINT file_size_bytes
+        string mime_type
+        INTEGER width_px
+        INTEGER height_px
+        Date capture_datetime
+        Date upload_datetime
+        Date created_at
+        Date updated_at
+    }
+
+    ImageEXIF {
+        UUID exif_id PK
+        UUID image_id FK
+        string camera_make
+        string camera_model
+        string lens_make
+        string lens_model
+        DECIMAL focal_length_mm
+        DECIMAL aperture_f
+        string shutter_speed
+        INTEGER iso
+        DECIMAL exposure_compensation
+        boolean flash_fired
+        string white_balance
+        string shooting_mode
+        INTEGER orientation
+        Date created_at
+    }
+
+    ImageGPS {
+        UUID gps_id PK
+        UUID image_id FK
+        DECIMAL latitude
+        DECIMAL longitude
+        DECIMAL altitude_m
+        Date created_at
+    }
+
+    ImageSelection {
+        UUID selection_id PK
+        UUID image_id FK
+        UUID user_id FK
+        boolean is_picked
+        boolean is_rejected
+        INTEGER rating
+        Date selected_at
+        Date updated_at
+    }
+
+    ImageGroup {
+        UUID group_id PK
+        UUID project_id FK
+        ENUM group_type
+        UUID representative_image_id FK
+        Date time_range_start
+        Date time_range_end
+        DECIMAL similarity_score
+        Date created_at
+        Date updated_at
+    }
+
+    ImageGroupMembership {
+        UUID membership_id PK
+        UUID group_id FK
+        UUID image_id FK
+        INTEGER sequence_order
+        Date added_at
+    }
+
+    QualityScore {
+        UUID quality_id PK
+        UUID image_id FK
+        DECIMAL brisque_score
+        DECIMAL tenegrad_score
+        DECIMAL musiq_score
+        string model_version
+        Date updated_at
+        Date created_at
+    }
+
+    BestShotRecommendation {
+        UUID recommendation_id PK
+        UUID image_id FK
+        UUID group_id FK
+        string model_version
+        Date updated_at
+        Date created_at
+    }
+
+    ObjectTag {
+        UUID tag_id PK
+        UUID image_id FK
+        string tag_name
+        string tag_category
+        DECIMAL confidence
+        INTEGER bounding_box_x
+        INTEGER bounding_box_y
+        INTEGER bounding_box_width
+        INTEGER bounding_box_height
+        string model_version
+        Date updated_at
+        Date created_at
+    }
+
+    AnalysisJob {
+        UUID job_id PK
+        UUID project_id FK
+        UUID user_id FK
+        ENUM job_type
+        ENUM job_status
+        TEXT error_message
+        Date started_at
+        Date completed_at
+        Date created_at
+        Date updated_at
+    }
+
+    AnalysisJobItem {
+        UUID job_item_id PK
+        UUID job_id FK
+        UUID image_id FK
+        ENUM item_status
+        TEXT error_message
+        INTEGER processing_time_ms
+        INTEGER retry_count
+        Date started_at
+        Date completed_at
+        Date created_at
+    }
+
+    UserSearch {
+        UUID search_id PK
+        UUID user_id FK
+        string search_query
+        ENUM search_type
+        INTEGER results_count
+        INTEGER search_duration_ms
+        Date created_at
+    }
+
+    Advertisement {
+        UUID ad_id PK
+        ENUM ad_type
+        string product_name
+        TEXT product_description
+        string product_image_url
+        string affiliate_url
+        boolean is_active
+        Date created_at
+        Date expires_at
+    }
+
+    AdTargetingRule {
+        UUID rule_id PK
+        UUID ad_id FK
+        string camera_model
+        string lens_model
+        ENUM user_segment
+        INTEGER min_iso_usage
+        INTEGER max_iso_usage
+        DECIMAL min_focal_length
+        DECIMAL max_focal_length
+        Date created_at
+    }
+
+    AdImpression {
+        UUID impression_id PK
+        UUID ad_id FK
+        UUID user_id FK
+        UUID project_id FK
+        boolean clicked
+        Date clicked_at
+        Date impression_date
+    }
+
+    ShootingPattern {
+        UUID pattern_id PK
+        UUID user_id FK
+        UUID most_used_camera_id FK
+        UUID most_used_lens_id FK
+        DECIMAL avg_iso
+        DECIMAL most_common_aperture
+        DECIMAL most_common_focal_length
+        INTEGER total_photos_analyzed
+        Date last_analyzed_at
+        Date created_at
+    }
+
+    UserRejectionReason {
+        UUID rejection_id PK
+        UUID image_id FK
+        UUID user_id FK
+        ENUM reason_code
+        TEXT reason_text
+        Date rejected_at
+    }
