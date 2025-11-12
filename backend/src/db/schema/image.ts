@@ -2,6 +2,8 @@ import { pgTable, text, timestamp, boolean, bigint, integer, decimal } from "dri
 import { relations } from "drizzle-orm";
 import { project } from "./project";
 import { user } from "./auth";
+import { imageCaption, qualityScore, bestShotRecommendation, objectTag  } from "./analysis";
+import { imageGroupMembership } from "./imageGroup";
 
 export const image = pgTable("image", {
   id: text("id").primaryKey(),
@@ -102,6 +104,12 @@ export const imageRelations = relations(image, ({ one, many }) => ({
     fields: [image.id],
     references: [imageSelection.imageId],
   }),
+  captions: many(imageCaption),
+  groupMemberships: many(imageGroupMembership),
+  selections: many(imageSelection),
+  qualityScores: many(qualityScore),
+  bestShotRecommendations: many(bestShotRecommendation),
+  objectTags: many(objectTag),
 }));
 
 export const imageEXIFRelations = relations(imageEXIF, ({ one }) => ({

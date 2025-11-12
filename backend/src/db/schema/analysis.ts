@@ -63,6 +63,22 @@ export const objectTag = pgTable("object_tag", {
     .notNull(),
 });
 
+export const imageCaption = pgTable("image_caption", {
+  id: text("id").primaryKey(),
+  imageId: text("image_id")
+    .notNull()
+    .references(() => image.id, { onDelete: "cascade" }),
+  caption: text("caption").notNull(),
+  modelVersion: text("model_version").notNull(),
+  updatedAt: timestamp("updated_at")
+    .$defaultFn(() => new Date())
+    .$onUpdate(() => new Date())
+    .notNull(),
+  createdAt: timestamp("created_at")
+    .$defaultFn(() => new Date())
+    .notNull(),
+});
+
 export const userRejectionReason = pgTable("user_rejection_reason", {
   id: text("id").primaryKey(),
   imageId: text("image_id")
@@ -112,5 +128,12 @@ export const userRejectionReasonRelations = relations(userRejectionReason, ({ on
   user: one(user, {
     fields: [userRejectionReason.userId],
     references: [user.id],
+  }),
+}));
+
+export const imageCaptionRelations = relations(imageCaption, ({ one }) => ({
+  image: one(image, {
+    fields: [imageCaption.imageId],
+    references: [image.id],
   }),
 }));
