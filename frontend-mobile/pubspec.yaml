@@ -19,7 +19,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.9.2
+  sdk: '>=3.4.3 <4.0.0'
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -35,6 +35,50 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
+  #router
+  go_router: ^13.1.0
+
+  # network
+  dio: ^5.3.2
+
+  # status manage
+  provider: ^6.0.5
+
+  #splash
+  flutter_native_splash: ^2.4.1
+
+  #sharedprefernences
+  shared_preferences: ^2.0.7
+
+  #svg
+  flutter_svg: ^2.0.10+1
+
+  #날 형식 변환
+  intl: ^0.18.0
+
+  #토큰 저장소
+  flutter_secure_storage: ^8.0.0
+  flutter_dotenv: ^5.2.0
+
+  #DI
+  get_it: ^7.7.0
+
+  #모델 만들기
+  json_annotation: ^4.9.0
+
+  # 직렬화 Freezed
+  freezed_annotation: ^2.0.3
+
+  #토스트 메시지
+  fluttertoast: ^8.0.9
+
+  # 애니메이션 로티
+  lottie: ^2.2.0
+  image_picker: ^0.8.7+5
+
+  # 디바이스 이미지 불러오기
+  photo_manager: ^3.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -45,6 +89,10 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  build_runner: ^2.4.11
+  freezed: ^2.0.3
+  json_serializable: ^6.7.0
+  analyzer: ^7.7.1
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -56,6 +104,38 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/
+    - assets/icons/navigator/
+    - assets/icons/button/
+    - assets/icons/image/
+
+  fonts:
+    - family: NotoSansBold
+      fonts:
+        - asset: assets/fonts/NotoSans-Bold.ttf
+    - family: NotoSansSemiBold
+      fonts:
+        - asset: assets/fonts/NotoSans-SemiBold.ttf
+    - family: NotoSansMedium
+      fonts:
+        - asset: assets/fonts/NotoSans-Medium.ttf
+    - family: NotoSansLight
+      fonts:
+        - asset: assets/fonts/NotoSans-Light.ttf
+    - family: NotoSansRegular
+      fonts:
+        - asset: assets/fonts/NotoSans-Regular.ttf
+    - family: NotoSansThin
+      fonts:
+        - asset: assets/fonts/NotoSans-Thin.ttf
+    - family: NotoSansExtraBold
+      fonts:
+        - asset: assets/fonts/NotoSans-ExtraBold.ttf
+    - family: NotoSansExtraLight
+      fonts:
+        - asset: assets/fonts/NotoSans-ExtraLight.ttf
 
   # To add assets to your application, add an assets section, like this:
   # assets:
