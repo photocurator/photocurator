@@ -1,6 +1,8 @@
 from celery import Celery, states
 from src.tasks import TASK_REGISTRY
 from src.db import get_db_connection
+import os
+import importlib
 
 app = Celery(
     "worker",
@@ -17,6 +19,16 @@ def close_db_conn_and_cursor(conn, cursor):
         cursor.close()
     if conn:
         conn.close()
+
+# Dynamically import all tasks to ensure they are registered.
+def register_tasks():
+    tasks_dir = os.path.join(os.path.dirname(__file__), "src", "tasks")
+    for filename in os.listdir(tasks_dir):
+        if filename.endswith(".py") and not filename.startswith("__"):
+            module_name = f"src.tasks.{filename[:-3]}"
+            importlib.import_module(module_name)
+
+register_tasks()
 
 @app.task(bind=True, max_retries=3, default_retry_delay=5)
 def process_image(self, task_name: str, image_id: str, job_item_id: str):
