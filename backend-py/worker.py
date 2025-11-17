@@ -1,4 +1,6 @@
-from celery import Celery
+from celery import Celery, states
+from src.tasks import TASK_REGISTRY
+from src.db import get_db_connection
 
 app = Celery(
     "worker",
@@ -6,7 +8,50 @@ app = Celery(
     backend="rpc://"
 )
 
-@app.task
-def add(x, y):
-    return x + y
+def get_db_conn_and_cursor():
+    conn = get_db_connection()
+    return conn, conn.cursor()
 
+def close_db_conn_and_cursor(conn, cursor):
+    if cursor:
+        cursor.close()
+    if conn:
+        conn.close()
+
+@app.task(bind=True, max_retries=3, default_retry_delay=5)
+def process_image(self, task_name: str, image_id: str, job_item_id: str):
+    conn, cur = None, None
+    try:
+        conn, cur = get_db_conn_and_cursor()
+
+        cur.execute("UPDATE analysis_job_item SET item_status = 'processing', started_at = NOW() WHERE id = %s", (job_item_id,))
+        conn.commit()
+
+        task_class = TASK_REGISTRY.get(task_name)
+        if not task_class:
+            raise ValueError(f"Task '{task_name}' not found in registry.")
+
+        task_instance = task_class()
+        task_instance.run(image_id)
+
+        cur.execute("UPDATE analysis_job_item SET item_status = 'completed', completed_at = NOW() WHERE id = %s", (job_item_id,))
+        conn.commit()
+
+    except Exception as exc:
+        if conn and cur:
+            conn.rollback() # Rollback any partial changes
+            cur.execute(
+                "UPDATE analysis_job_item SET error_message = %s WHERE id = %s",
+                (str(exc), job_item_id)
+            )
+            conn.commit()
+
+        try:
+            raise self.retry(exc=exc)
+        except self.MaxRetriesExceededError:
+            if conn and cur:
+                cur.execute("UPDATE analysis_job_item SET item_status = 'failed' WHERE id = %s", (job_item_id,))
+                conn.commit()
+            self.update_state(state=states.FAILURE, meta={'exc': exc})
+    finally:
+        close_db_conn_and_cursor(conn, cur)

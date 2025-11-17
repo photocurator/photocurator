@@ -7,4 +7,12 @@ requires-python = ">=3.12"
 dependencies = [
     "celery>=5.5.3",
     "fastapi[standard]>=0.121.1",
+    "psycopg2-binary>=2.9.9",
+    "ultralytics>=8.2.73",
+    "transformers>=4.43.3",
+    "pyiqa<=0.1.14.1",
+    "torch>=2.4.1",
+    "Pillow>=10.4.0",
+    "timm==0.9.12",
+    "python-dotenv>=1.0.1",
 ]
