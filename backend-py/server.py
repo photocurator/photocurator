@@ -21,6 +21,7 @@ class TaskStatus(BaseModel):
 @app.post("/tasks/", response_model=TaskStatus)
 def enqueue_task(task_request: TaskRequest):
     conn = None
+    cur = None
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -48,8 +49,9 @@ def enqueue_task(task_request: TaskRequest):
         task = process_image.delay(task_request.task_name, task_request.image_id, job_item_id)
         return TaskStatus(task_id=task.id, status="PENDING")
     finally:
-        if conn:
+        if cur:
             cur.close()
+        if conn:
             conn.close()
 
 @app.get("/tasks/{task_id}", response_model=TaskStatus)

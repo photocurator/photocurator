@@ -19,6 +19,7 @@ class QualityAssessmentTask(ImageProcessingTask):
         self._load_model()
 
         conn = None
+        cur = None
         try:
             conn = get_db_connection()
             cur = conn.cursor()
@@ -47,6 +48,7 @@ class QualityAssessmentTask(ImageProcessingTask):
 
             conn.commit()
         finally:
-            if conn:
+            if cur:
                 cur.close()
+            if conn:
                 conn.close()
