@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:photocurator/common/theme/colors.dart';
 
+//하단 기본 네비게이션 바 ui
 class ScaffoldWithNestedNavigation extends StatelessWidget {
   const ScaffoldWithNestedNavigation({
     super.key,
@@ -177,7 +178,7 @@ class _CenterCircleItem extends StatelessWidget {
         width: circleSize,
         height: circleSize,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.wh1,
           shape: BoxShape.circle,
           border: Border.all(color: AppColors.bottomBorder, width: 2),
           boxShadow: [

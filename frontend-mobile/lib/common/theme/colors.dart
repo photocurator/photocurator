@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 class AppColors {
   // 브랜드 컬러
-  static const Color primary = Color(0xFFE963A8);
-  static const Color secondary = Color(0xFF3A7EE6);
+  static const Color primary = Color(0xFF3A7EE6);
+  static const Color secondary = Color(0xFFE963A8);
 
   // 그라디언트
   static const Gradient mainGradient = LinearGradient(
