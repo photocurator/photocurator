@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:photocurator/common/bar/view/app_bar.dart';
+import 'package:photocurator/common/theme/colors.dart';
 import 'package:photocurator/common/bar/view_model/home_tab_section.dart';
 import './highlight_screen.dart';
 import './like_screen.dart';
@@ -14,6 +15,8 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.wh1,
+
       appBar: HomeAppBar(projectName: "Project name"), //추후에 프로젝트 이름 데이터 넣을 것
       body: HomeTabSection(
         pages: [

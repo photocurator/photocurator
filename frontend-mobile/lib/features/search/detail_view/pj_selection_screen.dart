@@ -11,6 +11,8 @@ class TrashScreen extends StatelessWidget {
     final deviceWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
+      backgroundColor: AppColors.wh1,
+
       appBar: DetailAppBar(
         title: "프로젝트 선택",
         rightWidget: GestureDetector(

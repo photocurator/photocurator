@@ -97,7 +97,7 @@ class SessionBar extends StatelessWidget {
                   onTap: () => onTabSelected(index),
                   color: textColor,
                   fontSize: barHeight * (14 / 54),
-                  fontFamily: 'NotoSansSemiBold', //isSelected ? 'NotoSansMedium' : 'NotoSansRegular',
+                  fontFamily: 'NotoSansRegular', //isSelected ? 'NotoSansMedium' : 'NotoSansRegular',
                   //왜????? 굵기가 변경이 안 될까??? 도대체 왜????
                   //추후 한글 전용 폰트인 notosansKR 받아서 해결할 것.
                   circleColor: textColor.withOpacity(isSelected ? 1.0 : 0.0),

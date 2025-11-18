@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:photocurator/common/theme/colors.dart';
-import 'package:photocurator/common/widgets/view_more_icon.dart';
 import 'package:photocurator/common/widgets/back_icon.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 

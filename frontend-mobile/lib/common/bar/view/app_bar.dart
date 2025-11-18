@@ -71,7 +71,7 @@ class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
     return BaseAppBar(
       title: projectName,
       rightWidget: Container(
-        width: barHeight * (20 / 50), //영역 설정...터치 영역 충분히 확보되도록
+        width: barHeight, //영역 설정...터치 영역 충분히 확보되도록
         alignment: Alignment.centerRight,
         child: IconButton(
           padding: EdgeInsets.zero,
