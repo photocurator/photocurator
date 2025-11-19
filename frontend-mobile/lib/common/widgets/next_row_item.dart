@@ -35,7 +35,7 @@ class NextRowItem extends StatelessWidget {
         child: _NextRowItemContent(
           titleText: titleText,
           widgetHeight: widgetHeight,
-          textColor : textColor,
+          textColor: textColor,
           baseFontSize: baseFontSize,
         ),
       ),

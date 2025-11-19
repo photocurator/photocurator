@@ -10,6 +10,8 @@ class TrashScreen extends StatelessWidget {
     final deviceWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
+      backgroundColor: AppColors.wh1,
+
       appBar: DetailAppBar(
         title: "숨긴 사진",
         rightWidget: GestureDetector(
@@ -25,7 +27,16 @@ class TrashScreen extends StatelessWidget {
           ),
         ),
       ),
-      //body:
+      body: Column(
+        mainAxisAlignment: MainAxisAlignment.start, // start, center, end, spaceBetween, spaceAround, spaceEvenly 중 선택
+        crossAxisAlignment: CrossAxisAlignment.center, // start, center, end, stretch, baseline 중 선택
+        mainAxisSize: MainAxisSize.min, // max (최대), min (자식 크기에 맞게 최소) 중 선택
+        // 내용
+        children: [
+          Container(height: 1, color: AppColors.lgE9ECEF), //구분선
+          //이미지 리스트 구현
+        ],
+      ),
     );
   }
 }

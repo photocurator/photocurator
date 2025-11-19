@@ -1,21 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:photocurator/common/theme/colors.dart';
 import 'package:photocurator/common/widgets/back_icon.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 //상세 페이지(하위 페이지) 상단 바 ui
 class DetailAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String? title;
   final Widget? rightWidget;
+  final VoidCallback? onTap;
 
   const DetailAppBar({
     super.key,
     this.title,
     this.rightWidget,
+    this.onTap,
   });
 
   @override
   Size get preferredSize => const Size.fromHeight(50);
+
   // ↑ 여긴 무시됨. 실제 높이는 build에서 계산됨.
   // 구조상 required라 아무 값 넣는 것.
 
@@ -24,7 +26,8 @@ class DetailAppBar extends StatelessWidget implements PreferredSizeWidget {
     final width = MediaQuery.of(context).size.width;
     final height = width * (50 / 375); // 반응형으로 세로 길이 설정
 
-    return SafeArea( //상태바 겹침 방지
+    return SafeArea(
+      //상태바 겹침 방지
       top: true, // 상단 노치 영역 포함
       child: Container(
         height: height,
@@ -72,17 +75,19 @@ class DetailAppBar extends StatelessWidget implements PreferredSizeWidget {
             // 오른쪽 버튼(텍스트 버튼 or 더보기 버튼 or null)
             SizedBox(
               width: height, // 중앙 정렬을 위해 왼쪽과 동일하게
-              child: Row(
-                children: [
-                  const Spacer(), // 정렬 맞추는 용도
-                  rightWidget ?? const SizedBox.shrink(),
-                ],
+              child: GestureDetector(
+                onTap: () => onTap,
+                child: Row(
+                  children: [
+                    const Spacer(), // 정렬 맞추는 용도
+                    rightWidget ?? const SizedBox.shrink(),
+                  ],
+                ),
               ),
             ),
           ],
         ),
       ),
     );
-
   }
 }
