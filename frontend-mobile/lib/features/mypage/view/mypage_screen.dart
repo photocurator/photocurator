@@ -4,12 +4,18 @@ import 'package:photocurator/common/bar/view/app_bar.dart';
 import 'package:photocurator/common/widgets/next_row_item.dart';
 import 'package:photocurator/features/mypage/detail_view/profile_setting_screen.dart';
 import 'package:photocurator/features/mypage/detail_view/alarm_screen.dart';
+import 'package:photocurator/common/widgets/back_icon.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
+//추후 데이터 교체 요망
 class MypageScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final deviceWidth = MediaQuery.of(context).size.width;
     final double itemHeight = deviceWidth * (50 / 375);
+
+    final String nickname = "닉네임"; // 추후 데이터 교체
+    final String userId = "id:lkjlk@gmail.com"; // 추후 데이터 교체
 
     return Scaffold(
       backgroundColor: AppColors.wh1,
@@ -31,17 +37,63 @@ class MypageScreen extends StatelessWidget {
           // 1. 간격
           const SizedBox(height: 20),
           // 2. 아이템 - 프로필 설정
-          // 임시 구현
-          NextRowItem(
-            titleText: '프로필 설정',
-            baseFontSize: 14, //NextRowItem build 시 반응형으로 사이즈 조정됨
+          GestureDetector(
             onTap: () {
-              // 프로필 설정 페이지로 이동
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => ProfileSettingScreen()),
               );
             },
+            child: Container(
+              height: itemHeight,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0), // 좌우 패딩
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: <Widget>[
+                      SvgPicture.asset(
+                        'assets/icons/button/user_setting.svg',
+                        width: itemHeight * (32 / 50),
+                        height: itemHeight * (32 / 50),
+                        colorFilter: ColorFilter.mode(
+                            AppColors.lgADB5BD, BlendMode.srcIn),
+                      ),
+                      SizedBox(width: 12),
+                      // 닉네임 + 이메일
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            nickname,
+                            style: TextStyle(
+                              fontFamily: 'NotoSansMedium',
+                              fontSize: itemHeight * (14 / 50),
+                              color: AppColors.dg1C1F23,
+                              letterSpacing: 0,
+                            ),
+                          ),
+                          Text(
+                            userId,
+                            style: TextStyle(
+                              fontFamily: 'NotoSansMedium',
+                              fontSize: itemHeight * (10 / 50),
+                              color: AppColors.lgADB5BD,
+                              letterSpacing: 0,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Spacer(),
+                      ChevronIcon(barHeight: itemHeight),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
           // 3. 간격
           const SizedBox(height: 20),

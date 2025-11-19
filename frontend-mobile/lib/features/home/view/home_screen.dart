@@ -9,15 +9,18 @@ import './grade_screen.dart';
 import './subject_screen.dart';
 import './setting_screen.dart';
 
-//홈 화면 로드
+// 추후 데이터 교체 요망
+// 홈 화면 로드
 class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final String pjname = "Project name";  //추후에 프로젝트 이름 데이터 넣을 것
+
     return Scaffold(
       backgroundColor: AppColors.wh1,
 
-      appBar: HomeAppBar(projectName: "Project name"), //추후에 프로젝트 이름 데이터 넣을 것
+      appBar: HomeAppBar(projectName: pjname),
       body: HomeTabSection(
         pages: [
           HighlightScreen(),

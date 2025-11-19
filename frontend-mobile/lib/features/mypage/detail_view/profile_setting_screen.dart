@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:photocurator/common/theme/colors.dart';
 import 'package:photocurator/common/bar/view/detail_app_bar.dart';
 import 'package:photocurator/common/widgets/next_row_item.dart';
+import 'package:photocurator/common/widgets/info_row_item.dart';
 import 'package:photocurator/features/mypage/detail_view/withdraw_screen.dart';
 
+//추후 데이터 교체 요망
 //프로필 설정 화면
 class ProfileSettingScreen extends StatelessWidget {
 
@@ -11,6 +13,11 @@ class ProfileSettingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final deviceWidth = MediaQuery.of(context).size.width;
     final double itemHeight = deviceWidth * (50 / 375);
+
+    final String nickname = "닉네임"; // 추후 데이터 교체
+    final String userId = "id:lkjlk@gmail.com"; // 추후 데이터 교체
+    final String CreatedAt = "2025/11/19"; // 추후 데이터 교체
+
     return Scaffold(
       backgroundColor: AppColors.wh1,
 
@@ -54,11 +61,12 @@ class ProfileSettingScreen extends StatelessWidget {
             ),
           ),
           // 3. 닉네임
-
+          //임시 구현
+          InfoRowItem(titleText: "닉네임", infoText: nickname),
           // 4. 아이디 (= 이메일)
-
+          InfoRowItem(titleText: "아이디", infoText: userId),
           // 5. 가입 일자
-
+          InfoRowItem(titleText: "가입 일자", infoText: CreatedAt),
           // 6. 간격
           const SizedBox(height: 20),
           // 7. 회색 구분 영역
@@ -84,6 +92,29 @@ class ProfileSettingScreen extends StatelessWidget {
             ),
           ),
           // 9. 로그아웃
+          Material( // InkWell 사용을 위해
+            color: Colors.transparent,
+            child: InkWell( // 리플 효과 있음
+              onTap: () {
+                // 버튼 클릭 시 동작 구현
+              },
+              child: Container(
+                height: 50,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                alignment: Alignment.centerLeft,  // 텍스트 왼쪽 정렬
+                child: Text(
+                  "로그아웃",
+                  style: TextStyle(
+                    fontFamily: 'NotoSansMedium',
+                    fontSize:  itemHeight * (14 / 50),
+                    color: AppColors.dg1C1F23,
+                    letterSpacing: 0,
+                  ),
+                  textAlign: TextAlign.left,
+                ),
+              ),
+            ),
+          ),
 
           // 10. 회원 탈퇴
           NextRowItem(
