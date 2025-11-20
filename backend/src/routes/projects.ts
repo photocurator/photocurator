@@ -158,6 +158,7 @@ const app = new Hono()
         await db.insert(images).values({
           id: imageId,
           projectId,
+          userId: user.id,
           originalFilename: file.name,
           storagePath: filePath,
           fileSizeBytes: file.size,

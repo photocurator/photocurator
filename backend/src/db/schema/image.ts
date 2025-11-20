@@ -7,6 +7,8 @@ import { imageGroupMembership } from "./imageGroup";
 
 export const image = pgTable("image", {
   id: text("id").primaryKey(),
+  userId: text("user_id")
+    .references(() => user.id, { onDelete: "cascade" }),
   projectId: text("project_id")
     .notNull()
     .references(() => project.id, { onDelete: "cascade" }),
@@ -17,6 +19,7 @@ export const image = pgTable("image", {
   mimeType: text("mime_type").notNull(),
   widthPx: integer("width_px"),
   heightPx: integer("height_px"),
+  compareViewSelected: boolean("compare_view_selected").default(false).notNull(),
   captureDatetime: timestamp("capture_datetime"),
   uploadDatetime: timestamp("upload_datetime")
     .$defaultFn(() => new Date())
@@ -88,6 +91,10 @@ export const imageSelection = pgTable("image_selection", {
 
 // Relations
 export const imageRelations = relations(image, ({ one, many }) => ({
+  user: one(user, {
+    fields: [image.userId],
+    references: [user.id],
+  }),
   project: one(project, {
     fields: [image.projectId],
     references: [project.id],
