@@ -1,3 +1,7 @@
+/**
+ * @module db/schema/jobs
+ * This file defines the database schema for analysis jobs and their individual items.
+ */
 import { pgTable, text, timestamp, integer } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { jobTypeEnum, jobStatusEnum, itemStatusEnum } from "./enums";
@@ -5,6 +9,9 @@ import { project } from "./project";
 import { user } from "./auth";
 import { image } from "./image";
 
+/**
+ * The `analysis_job` table stores information about bulk analysis jobs.
+ */
 export const analysisJob = pgTable("analysis_job", {
   id: text("id").primaryKey(),
   projectId: text("project_id")
@@ -27,6 +34,9 @@ export const analysisJob = pgTable("analysis_job", {
     .notNull(),
 });
 
+/**
+ * The `analysis_job_item` table stores the status of individual items within a bulk analysis job.
+ */
 export const analysisJobItem = pgTable("analysis_job_item", {
   id: text("id").primaryKey(),
   jobId: text("job_id")
@@ -47,6 +57,9 @@ export const analysisJobItem = pgTable("analysis_job_item", {
 });
 
 // Relations
+/**
+ * Defines the relations for the `analysis_job` table.
+ */
 export const analysisJobRelations = relations(analysisJob, ({ one, many }) => ({
   project: one(project, {
     fields: [analysisJob.projectId],
@@ -59,6 +72,9 @@ export const analysisJobRelations = relations(analysisJob, ({ one, many }) => ({
   items: many(analysisJobItem),
 }));
 
+/**
+ * Defines the relations for the `analysis_job_item` table.
+ */
 export const analysisJobItemRelations = relations(analysisJobItem, ({ one }) => ({
   job: one(analysisJob, {
     fields: [analysisJobItem.jobId],

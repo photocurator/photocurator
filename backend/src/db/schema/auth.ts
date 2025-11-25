@@ -1,6 +1,13 @@
+/**
+ * @module db/schema/auth
+ * This file defines the database schema for user authentication, including users, sessions, accounts, and verification tokens.
+ */
 import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
+/**
+ * The `user` table stores information about registered users.
+ */
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -16,6 +23,9 @@ export const user = pgTable("user", {
     .notNull(),
 });
 
+/**
+ * The `session` table stores user session information.
+ */
 export const session = pgTable("session", {
   id: text("id").primaryKey(),
   expiresAt: timestamp("expires_at").notNull(),
@@ -33,6 +43,9 @@ export const session = pgTable("session", {
     .references(() => user.id, { onDelete: "cascade" }),
 });
 
+/**
+ * The `account` table stores information about user accounts with different providers (e.g., Google, GitHub).
+ */
 export const account = pgTable("account", {
   id: text("id").primaryKey(),
   accountId: text("account_id").notNull(),
@@ -55,6 +68,9 @@ export const account = pgTable("account", {
     .notNull(),
 });
 
+/**
+ * The `verification` table stores tokens for email verification.
+ */
 export const verification = pgTable("verification", {
   id: text("id").primaryKey(),
   identifier: text("identifier").notNull(),
@@ -70,11 +86,17 @@ export const verification = pgTable("verification", {
 });
 
 // Relations
+/**
+ * Defines the relations for the `user` table.
+ */
 export const userRelations = relations(user, ({ many, one }) => ({
   sessions: many(session),
   accounts: many(account),
 }));
 
+/**
+ * Defines the relations for the `session` table.
+ */
 export const sessionRelations = relations(session, ({ one }) => ({
   user: one(user, {
     fields: [session.userId],
@@ -82,6 +104,9 @@ export const sessionRelations = relations(session, ({ one }) => ({
   }),
 }));
 
+/**
+ * Defines the relations for the `account` table.
+ */
 export const accountRelations = relations(account, ({ one }) => ({
   user: one(user, {
     fields: [account.userId],

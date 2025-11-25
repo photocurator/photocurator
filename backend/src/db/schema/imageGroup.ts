@@ -1,9 +1,16 @@
+/**
+ * @module db/schema/imageGroup
+ * This file defines the database schema for image groups and their memberships.
+ */
 import { pgTable, text, timestamp, decimal, integer } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { groupTypeEnum } from "./enums";
 import { project } from "./project";
 import { image } from "./image";
 
+/**
+ * The `image_group` table stores information about groups of images.
+ */
 export const imageGroup = pgTable("image_group", {
   id: text("id").primaryKey(),
   projectId: text("project_id")
@@ -23,6 +30,9 @@ export const imageGroup = pgTable("image_group", {
     .notNull(),
 });
 
+/**
+ * The `image_group_membership` table links images to image groups, defining which images belong to which groups.
+ */
 export const imageGroupMembership = pgTable("image_group_membership", {
   id: text("id").primaryKey(),
   groupId: text("group_id")
@@ -38,6 +48,9 @@ export const imageGroupMembership = pgTable("image_group_membership", {
 });
 
 // Relations
+/**
+ * Defines the relations for the `image_group` table.
+ */
 export const imageGroupRelations = relations(imageGroup, ({ one, many }) => ({
   project: one(project, {
     fields: [imageGroup.projectId],
@@ -46,6 +59,9 @@ export const imageGroupRelations = relations(imageGroup, ({ one, many }) => ({
   memberships: many(imageGroupMembership),
 }));
 
+/**
+ * Defines the relations for the `image_group_membership` table.
+ */
 export const imageGroupMembershipRelations = relations(imageGroupMembership, ({ one }) => ({
   group: one(imageGroup, {
     fields: [imageGroupMembership.groupId],

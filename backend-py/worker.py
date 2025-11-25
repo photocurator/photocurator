@@ -1,3 +1,4 @@
+"""This module defines the Celery worker and the main task for processing images."""
 from celery import Celery, states
 from src.tasks import TASK_REGISTRY
 from src.db import get_db_connection
@@ -11,17 +12,28 @@ app = Celery(
 )
 
 def get_db_conn_and_cursor():
+    """Gets a database connection and cursor.
+
+    Returns:
+        tuple: A tuple containing the database connection and cursor.
+    """
     conn = get_db_connection()
     return conn, conn.cursor()
 
 def close_db_conn_and_cursor(conn, cursor):
+    """Closes the database connection and cursor.
+
+    Args:
+        conn (psycopg2.extensions.connection): The database connection.
+        cursor (psycopg2.extensions.cursor): The database cursor.
+    """
     if cursor:
         cursor.close()
     if conn:
         conn.close()
 
-# Dynamically import all tasks to ensure they are registered.
 def register_tasks():
+    """Dynamically imports all tasks from the `src/tasks` directory to ensure they are registered in the TASK_REGISTRY."""
     tasks_dir = os.path.join(os.path.dirname(__file__), "src", "tasks")
     for filename in os.listdir(tasks_dir):
         if filename.endswith(".py") and not filename.startswith("__"):
@@ -32,6 +44,17 @@ register_tasks()
 
 @app.task(bind=True, max_retries=3, default_retry_delay=5)
 def process_image(self, task_name: str, image_id: str, job_item_id: str):
+    """The main Celery task for processing an image.
+
+    This task retrieves the appropriate task class from the TASK_REGISTRY,
+    updates the job item status in the database, runs the task, and handles
+    retries and failures.
+
+    Args:
+        task_name (str): The name of the task to run.
+        image_id (str): The ID of the image to process.
+        job_item_id (str): The ID of the analysis job item.
+    """
     conn, cur = None, None
     try:
         conn, cur = get_db_conn_and_cursor()
