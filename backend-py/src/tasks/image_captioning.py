@@ -1,3 +1,4 @@
+"""This module defines the Celery task for generating image captions."""
 from transformers import AutoProcessor, AutoModelForCausalLM
 from PIL import Image
 import os
@@ -8,15 +9,26 @@ from .base import ImageProcessingTask
 
 @register_task("image_captioning")
 class ImageCaptioningTask(ImageProcessingTask):
+    """A Celery task to generate a detailed caption for an image using a pre-trained model.
+    """
     model = None
     processor = None
 
     def _load_model(self):
+        """Lazily loads the pre-trained image captioning model and processor."""
         if self.model is None:
             self.model = AutoModelForCausalLM.from_pretrained("microsoft/Florence-2-base-ft", trust_remote_code=True)
             self.processor = AutoProcessor.from_pretrained("microsoft/Florence-2-base-ft", trust_remote_code=True)
 
     def run(self, image_id: str):
+        """The main execution method for the task.
+
+        This method retrieves the image path from the database, generates a caption using the model,
+        and then stores the caption back into the database.
+
+        Args:
+            image_id (str): The ID of the image to be processed.
+        """
         self._load_model()
 
         conn = None
@@ -55,10 +67,10 @@ class ImageCaptioningTask(ImageProcessingTask):
 
             cur.execute(
                 """
-                INSERT INTO object_tag (id, image_id, tag_name, tag_category, model_version, created_at, updated_at)
-                VALUES (%s, %s, %s, %s, %s, NOW(), NOW())
+                INSERT INTO image_caption (id, image_id, caption, model_version, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, NOW(), NOW())
                 """,
-                (str(uuid.uuid4()), image_id, caption.strip(), "caption", "Florence-2-base-ft")
+                (str(uuid.uuid4()), image_id, caption.strip(), "Florence-2-base-ft")
             )
 
             conn.commit()

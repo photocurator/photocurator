@@ -1,8 +1,15 @@
+/**
+ * @module db/schema/subscription
+ * This file defines the database schema for user subscriptions and storage quotas.
+ */
 import { pgTable, text, timestamp, boolean, bigint } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { subscriptionTierEnum } from "./enums";
 import { user } from "./auth";
 
+/**
+ * The `subscription` table stores information about user subscriptions.
+ */
 export const subscription = pgTable("subscription", {
   id: text("id").primaryKey(),
   userId: text("user_id")
@@ -21,6 +28,9 @@ export const subscription = pgTable("subscription", {
     .notNull(),
 });
 
+/**
+ * The `user_storage_quota` table stores the storage limits for each user.
+ */
 export const userStorageQuota = pgTable("user_storage_quota", {
   id: text("id").primaryKey(),
   userId: text("user_id")
@@ -37,6 +47,9 @@ export const userStorageQuota = pgTable("user_storage_quota", {
 });
 
 // Relations
+/**
+ * Defines the relations for the `subscription` table.
+ */
 export const subscriptionRelations = relations(subscription, ({ one }) => ({
   user: one(user, {
     fields: [subscription.userId],
@@ -44,6 +57,9 @@ export const subscriptionRelations = relations(subscription, ({ one }) => ({
   }),
 }));
 
+/**
+ * Defines the relations for the `user_storage_quota` table.
+ */
 export const userStorageQuotaRelations = relations(userStorageQuota, ({ one }) => ({
   user: one(user, {
     fields: [userStorageQuota.userId],

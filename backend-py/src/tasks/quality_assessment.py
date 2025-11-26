@@ -1,3 +1,4 @@
+"""This module defines the Celery task for assessing image quality."""
 import pyiqa
 import torch
 from PIL import Image
@@ -9,13 +10,24 @@ from .base import ImageProcessingTask
 
 @register_task("quality_assessment")
 class QualityAssessmentTask(ImageProcessingTask):
+    """A Celery task to assess the quality of an image using the TOPIQ model.
+    """
     model = None
 
     def _load_model(self):
+        """Lazily loads the TOPIQ image quality assessment model."""
         if self.model is None:
             self.model = pyiqa.create_metric('topiq', device=torch.device('cpu'))
 
     def run(self, image_id: str):
+        """The main execution method for the task.
+
+        This method retrieves the image path from the database, assesses its quality using the TOPIQ model,
+        and then stores the quality score back into the database.
+
+        Args:
+            image_id (str): The ID of the image to be processed.
+        """
         self._load_model()
 
         conn = None
@@ -42,6 +54,10 @@ class QualityAssessmentTask(ImageProcessingTask):
                 """
                 INSERT INTO quality_score (id, image_id, musiq_score, model_version, created_at, updated_at)
                 VALUES (%s, %s, %s, %s, NOW(), NOW())
+                ON CONFLICT (image_id) DO UPDATE SET
+                    musiq_score = EXCLUDED.musiq_score,
+                    model_version = EXCLUDED.model_version,
+                    updated_at = NOW();
                 """,
                 (str(uuid.uuid4()), image_id, score, "topiq_nr")
             )
