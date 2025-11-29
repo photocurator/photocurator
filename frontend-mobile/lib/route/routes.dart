@@ -17,10 +17,13 @@ final AppRouter = GoRouter(
   routes: [
     GoRoute(
       path: '/project/add-photos',
-      pageBuilder: (context, state) => MaterialPage(
-        key: state.pageKey,
-        child: const PhotoSelectionScreen(),
-      ),
+      pageBuilder: (context, state) {
+        final projectName = state.extra as String; // Extract the project name
+        return MaterialPage(
+          key: state.pageKey,
+          child: PhotoSelectionScreen(projectName: projectName),
+        );
+      },
     ),
     GoRoute(
       path: '/onboarding',

@@ -296,7 +296,10 @@ class _StartScreenState extends State<StartScreen> {
             // First, pop the dialog
             Navigator.of(dialogContext).pop();
             // Then, navigate to the photo selection screen
-            context.go('/project/add-photos');
+            context.go(
+              '/project/add-photos',
+              extra: _projectNameController.text,
+            );
           },
         );
       },

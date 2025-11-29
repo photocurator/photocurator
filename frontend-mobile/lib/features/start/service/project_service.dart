@@ -1,48 +1,96 @@
-import 'package:photocurator/features/start/view_model/project_model.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-class ProjectService {
-  // Mock data to simulate API response
-  Future<List<Project>> getProjects() async {
-    await Future.delayed(const Duration(milliseconds: 500)); // Simulate network delay
+class Project {
+  final String id;
+  final String userId;
+  final String projectName;
+  final String? coverImageId;
+  final bool isArchived;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? archivedAt;
 
-    return [
-      Project(
-        projectId: '1',
-        name: 'Project name',
-        createdAt: DateTime(2024, 7, 10),
-        coverImageId: null, 
-      ),
-      Project(
-        projectId: '2',
-        name: '영국 여행',
-        createdAt: DateTime(2024, 7, 10),
-        coverImageId: null,
-      ),
-      Project(
-        projectId: '3',
-        name: '7월 부산',
-        createdAt: DateTime(2024, 7, 10),
-        coverImageId: null,
-      ),
-      Project(
-        projectId: '4',
-        name: 'Project name',
-        createdAt: DateTime(2024, 7, 10),
-        coverImageId: null,
-      ),
-      Project(
-        projectId: '5',
-        name: 'Project name',
-        createdAt: DateTime(2024, 7, 10),
-        coverImageId: null,
-      ),
-       Project(
-        projectId: '6',
-        name: 'Project name',
-        createdAt: DateTime(2024, 7, 10),
-        coverImageId: null,
-      ),
-    ];
+  Project({
+    required this.id,
+    required this.userId,
+    required this.projectName,
+    this.coverImageId,
+    required this.isArchived,
+    required this.createdAt,
+    required this.updatedAt,
+    this.archivedAt,
+  });
+
+  factory Project.fromJson(Map<String, dynamic> json) {
+    return Project(
+      id: json['id'],
+      userId: json['userId'],
+      projectName: json['projectName'],
+      coverImageId: json['coverImageId'],
+      isArchived: json['isArchived'],
+      createdAt: DateTime.parse(json['createdAt']),
+      updatedAt: DateTime.parse(json['updatedAt']),
+      archivedAt: json['archivedAt'] != null ? DateTime.parse(json['archivedAt']) : null,
+    );
   }
 }
 
+class ProjectService {
+  late Dio _dio;
+  final String? _baseUrl = dotenv.env['API_BASE_URL'];
+
+  ProjectService() {
+    _dio = Dio(BaseOptions(
+      baseUrl: _baseUrl!,
+    ));
+  }
+
+  Future<Project?> createProject(String projectName) async {
+    try {
+      final response = await _dio.post(
+        '/projects',
+        data: {
+          'name': projectName,
+        },
+      );
+      if (response.statusCode == 201) {
+        print('Project created successfully');
+        return Project.fromJson(response.data);
+      } else {
+        print('Failed to create project: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('Error creating project: $e');
+      return null;
+    }
+  }
+
+  Future<String?> uploadImages(String projectId, List<String> photoPaths) async {
+    try {
+      final formData = FormData();
+      for (var path in photoPaths) {
+        formData.files.add(MapEntry(
+          'files',
+          await MultipartFile.fromFile(path),
+        ));
+      }
+
+      final response = await _dio.post(
+        '/projects/$projectId/images',
+        data: formData,
+      );
+
+      if (response.statusCode == 201) {
+        return response.data['message'];
+      } else {
+        print('Failed to upload images: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('Error uploading images: $e');
+      return null;
+    }
+  }
+}

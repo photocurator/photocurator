@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:photocurator/common/theme/colors.dart';
 import 'package:photocurator/common/widgets/photo_grid_item.dart';
+import 'package:photocurator/features/start/service/project_service.dart';
 import 'package:photo_manager/photo_manager.dart';
 
 class PhotoSelectionScreen extends StatefulWidget {
-  const PhotoSelectionScreen({super.key});
+  final String projectName;
+  const PhotoSelectionScreen({super.key, required this.projectName});
 
   @override
   State<PhotoSelectionScreen> createState() => _PhotoSelectionScreenState();
@@ -15,6 +17,7 @@ class PhotoSelectionScreen extends StatefulWidget {
 class _PhotoSelectionScreenState extends State<PhotoSelectionScreen> {
   List<AssetEntity> _assets = [];
   List<AssetEntity> _selectedAssets = [];
+  final ProjectService _projectService = ProjectService();
 
   @override
   void initState() {
@@ -166,26 +169,34 @@ class _PhotoSelectionScreenState extends State<PhotoSelectionScreen> {
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
         child: _selectedAssets.isEmpty
             ? OutlinedButton(
-                onPressed: () {
-                  // Handle Skip
+                onPressed: () async {
+                  final createdProject = await _projectService.createProject(widget.projectName);
+                  if (createdProject != null) {
+                    // Navigate to home or another screen
+                    context.go('/home');
+                  }
                 },
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50),
-                  foregroundColor: AppColors.primary,
-                  side: const BorderSide(color: AppColors.primary),
-                  textStyle: const TextStyle(
-                    fontFamily: 'NotoSansMedium',
-                    fontSize: 16,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: const Text('건너뛰기'),
-              )
-            : ElevatedButton(
-                onPressed: () {
-                  // Handle Done
+...
+                onPressed: () async {
+                  List<String> photoPaths = [];
+                  for (var asset in _selectedAssets) {
+                    final file = await asset.file;
+                    if (file != null) {
+                      photoPaths.add(file.path);
+                    }
+                  }
+                  
+                  final createdProject = await _projectService.createProject(widget.projectName);
+
+                  if (createdProject != null) {
+                    if (photoPaths.isNotEmpty) {
+                      final message = await _projectService.uploadImages(createdProject.id, photoPaths);
+                      if (message != null) {
+                        print(message);
+                      }
+                    }
+                    context.go('/home');
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
