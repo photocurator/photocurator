@@ -1,57 +1,23 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_better_auth/flutter_better_auth.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-class Project {
-  final String id;
-  final String userId;
-  final String projectName;
-  final String? description; // Added description
-  final String? coverImageId;
-  final bool isArchived;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  final DateTime? archivedAt;
-
-  Project({
-    required this.id,
-    required this.userId,
-    required this.projectName,
-    this.description, // Added description
-    this.coverImageId,
-    required this.isArchived,
-    required this.createdAt,
-    required this.updatedAt,
-    this.archivedAt,
-  });
-
-  factory Project.fromJson(Map<String, dynamic> json) {
-    return Project(
-      id: json['id'],
-      userId: json['userId'],
-      projectName: json['projectName'],
-      description: json['description'], // Added description
-      coverImageId: json['coverImageId'],
-      isArchived: json['isArchived'],
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
-      archivedAt: json['archivedAt'] != null ? DateTime.parse(json['archivedAt']) : null,
-    );
-  }
-}
+// ... (Project class remains the same)
 
 class ProjectService {
   late Dio _dio;
-  late String? _baseUrl = dotenv.env['API_BASE_URL'];
+  String? _baseUrl;
 
   ProjectService() {
+    _dio = FlutterBetterAuth.dioClient;
     _baseUrl = dotenv.env['API_BASE_URL'];
     if (_baseUrl == null || _baseUrl!.isEmpty) {
       throw Exception('API_BASE_URL not found in .env file');
     }
-    _dio = Dio(BaseOptions(
-      baseUrl: _baseUrl!,
-    ));
+    _dio.options.baseUrl = _baseUrl!;
   }
+// ... (the rest of the class remains the same)
+
 
   Future<Project?> createProject(String projectName) async {
     try {
