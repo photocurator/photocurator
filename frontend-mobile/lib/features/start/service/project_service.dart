@@ -40,17 +40,22 @@ class Project {
     );
   }
 
-  String? get coverImageUrl => coverImageId;
+  String? get coverImageUrl {
+    if (coverImageId == null || ProjectService.baseUrl == null) {
+      return null;
+    }
+    return '${ProjectService.baseUrl}/images/$coverImageId/file';
+  }
 }
 
 class ProjectService {
   late Dio _dio;
-  String? _baseUrl;
+  static String? baseUrl;
 
   ProjectService() {
     _dio = FlutterBetterAuth.dioClient;
-    _baseUrl = dotenv.env['API_BASE_URL'];
-    if (_baseUrl == null || _baseUrl!.isEmpty) {
+    baseUrl = dotenv.env['API_BASE_URL'];
+    if (baseUrl == null || baseUrl!.isEmpty) {
       throw Exception('API_BASE_URL not found in .env file');
     }
   }
@@ -58,7 +63,7 @@ class ProjectService {
   Future<Project?> createProject(String projectName) async {
     try {
       final response = await _dio.post(
-        '$_baseUrl/projects',
+        '${ProjectService.baseUrl}/projects',
         data: {
           'name': projectName,
         },
@@ -88,7 +93,7 @@ class ProjectService {
       }
 
       final response = await _dio.post(
-        '$_baseUrl/projects/$projectId/images',
+        '${ProjectService.baseUrl}/projects/$projectId/images',
         data: formData,
       );
 
@@ -106,7 +111,7 @@ class ProjectService {
 
   Future<List<Project>> getProjects() async {
     try {
-      final response = await _dio.get('$_baseUrl/projects');
+      final response = await _dio.get('${ProjectService.baseUrl}/projects');
       if (response.statusCode == 200) {
         final List<dynamic> projectJsonList = response.data;
         return projectJsonList.map((json) => Project.fromJson(json)).toList();
