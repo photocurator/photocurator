@@ -35,7 +35,7 @@ To run the Python backend, you will need to start two services: the FastAPI serv
 **1. Start the FastAPI Server:**
 
 ```sh
-poetry run uvicorn server:app --reload
+uv run uvicorn server:app --reload
 ```
 
 The server will be available at [http://localhost:8000](http://localhost:8000).
@@ -43,7 +43,7 @@ The server will be available at [http://localhost:8000](http://localhost:8000).
 **2. Start the Celery Worker:**
 
 ```sh
-poetry run celery -A worker.app worker --loglevel=info
+uv run celery -A worker.app worker --loglevel=info
 ```
 
 This will start a Celery worker that will begin processing tasks from the queue.

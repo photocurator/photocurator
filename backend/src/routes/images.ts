@@ -2,7 +2,7 @@
  * @module routes/images
  * This file defines the API routes for managing and retrieving images.
  */
-import { OpenAPIHono, createRoute } from 'hono-zod-openapi';
+import { OpenAPIHono, createRoute } from '@hono/zod-openapi';
 import { z } from 'zod';
 import { db } from '../db';
 import {
@@ -26,9 +26,9 @@ type Variables = {
 const app = new OpenAPIHono<{ Variables: Variables }>();
 
 const ImageSchema = z.object({
-  id: z.string().uuid(),
-  userId: z.string().uuid().nullable(),
-  projectId: z.string().uuid(),
+  id: z.uuid(),
+  userId: z.uuid().nullable(),
+  projectId: z.uuid(),
   originalFilename: z.string(),
   storagePath: z.string(),
   thumbnailPath: z.string().nullable(),
@@ -37,37 +37,37 @@ const ImageSchema = z.object({
   widthPx: z.number().nullable(),
   heightPx: z.number().nullable(),
   compareViewSelected: z.boolean(),
-  captureDatetime: z.string().datetime().nullable(),
-  uploadDatetime: z.string().datetime(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
+  captureDatetime: z.iso.datetime().nullable(),
+  uploadDatetime: z.iso.datetime(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
 });
 
 const QualityScoreSchema = z.object({
-    id: z.string().uuid(),
-    imageId: z.string().uuid(),
+    id: z.uuid(),
+    imageId: z.uuid(),
     brisqueScore: z.string().nullable(),
     tenegradScore: z.string().nullable(),
     musiqScore: z.string().nullable(),
     modelVersion: z.string(),
-    updatedAt: z.string().datetime(),
-    createdAt: z.string().datetime(),
+    updatedAt: z.iso.datetime(),
+    createdAt: z.iso.datetime(),
   });
 
 const ImageSelectionSchema = z.object({
-    id: z.string().uuid(),
-    imageId: z.string().uuid(),
-    userId: z.string().uuid(),
+    id: z.uuid(),
+    imageId: z.uuid(),
+    userId: z.uuid(),
     isPicked: z.boolean(),
     isRejected: z.boolean(),
     rating: z.number().nullable(),
-    selectedAt: z.string().datetime(),
-    updatedAt: z.string().datetime(),
+    selectedAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
   });
 
 const ObjectTagSchema = z.object({
-    id: z.string().uuid(),
-    imageId: z.string().uuid(),
+    id: z.uuid(),
+    imageId: z.uuid(),
     tagName: z.string(),
     tagCategory: z.string().nullable(),
     confidence: z.string().nullable(),
@@ -76,8 +76,8 @@ const ObjectTagSchema = z.object({
     boundingBoxWidth: z.number().nullable(),
     boundingBoxHeight: z.number().nullable(),
     modelVersion: z.string(),
-    updatedAt: z.string().datetime(),
-    createdAt: z.string().datetime(),
+    updatedAt: z.iso.datetime(),
+    createdAt: z.iso.datetime(),
   });
 
 const ImageDetailSchema = z.object({
@@ -318,7 +318,7 @@ const patchImageRoute = createRoute({
     description: 'Updates the `compareViewSelected` status of an image.',
     request: {
         params: z.object({
-            imageId: z.string().uuid(),
+            imageId: z.uuid(),
         }),
         body: {
             content: {
@@ -387,7 +387,7 @@ const putImageSelectionRoute = createRoute({
     description: 'Updates the selection status (picked, rating) of an image.',
     request: {
         params: z.object({
-            imageId: z.string().uuid(),
+            imageId: z.uuid(),
         }),
         body: {
             content: {
@@ -454,7 +454,7 @@ const postImageRejectRoute = createRoute({
     description: 'Records a user\'s rejection of an image, including the reason.',
     request: {
         params: z.object({
-            imageId: z.string().uuid(),
+            imageId: z.uuid(),
         }),
         body: {
             content: {

@@ -2,12 +2,12 @@
  * @module routes/ads
  * This file defines the API routes for serving advertisements.
  */
-import { OpenAPIHono, createRoute } from 'hono-zod-openapi';
+import { OpenAPIHono, createRoute } from '@hono/zod-openapi';
 import { z } from 'zod';
 import { db } from '../db';
 import { adTargetingRule, advertisement, shootingPattern } from '../db/schema';
 import { eq, and, or, gte, lte } from 'drizzle-orm';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import { AuthType } from '../lib/auth';
 
 type Variables = {
@@ -18,7 +18,7 @@ type Variables = {
 const app = new OpenAPIHono<{ Variables: Variables }>();
 
 const BannerAdSchema = z.object({
-  adId: z.string().uuid().openapi({
+  adId: z.uuid().openapi({
     description: 'The ID of the advertisement.',
     example: '123e4567-e89b-12d3-a456-426614174000',
   }),
@@ -30,7 +30,7 @@ const BannerAdSchema = z.object({
     description: 'The affiliate URL to redirect to when the ad is clicked.',
     example: 'https://example.com/product/123',
   }),
-  trackingToken: z.string().uuid().openapi({
+  trackingToken: z.uuid().openapi({
     description: 'A token for tracking ad impressions and clicks.',
     example: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
   }),
@@ -97,7 +97,7 @@ app.openapi(route, async (c) => {
     .leftJoin(adTargetingRule, eq(adTargetingRule.adId, advertisement.id))
     .where(
       or(
-        eq(adTargetingRule.id, null), // General ad
+        eq(adTargetingRule.id, ''), // General ad
         and(
           gte(pattern.avgIso, adTargetingRule.minIsoUsage),
           lte(pattern.avgIso, adTargetingRule.maxIsoUsage),
@@ -117,7 +117,7 @@ app.openapi(route, async (c) => {
     adId: selectedAd.id,
     imageUrl: selectedAd.productImageUrl,
     clickUrl: selectedAd.affiliateUrl,
-    trackingToken: uuidv4(),
+    trackingToken: randomUUID().toString(),
   });
 });
 

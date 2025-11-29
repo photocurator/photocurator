@@ -2,7 +2,7 @@
  * @module routes/users
  * This file defines the API routes for user-specific data, such as statistics.
  */
-import { OpenAPIHono, createRoute } from 'hono-zod-openapi';
+import { OpenAPIHono, createRoute } from '@hono/zod-openapi';
 import { z } from 'zod';
 import { db } from '../db';
 import { shootingPattern } from '../db/schema';
@@ -17,16 +17,16 @@ type Variables = {
 const app = new OpenAPIHono<{ Variables: Variables }>();
 
 const ShootingPatternSchema = z.object({
-  id: z.string().uuid(),
-  userId: z.string().uuid(),
+  id: z.uuid(),
+  userId: z.uuid(),
   mostUsedCameraId: z.string().nullable(),
   mostUsedLensId: z.string().nullable(),
   avgIso: z.string().nullable(),
   mostCommonAperture: z.string().nullable(),
   mostCommonFocalLength: z.string().nullable(),
   totalPhotosAnalyzed: z.number(),
-  lastAnalyzedAt: z.string().datetime().nullable(),
-  createdAt: z.string().datetime(),
+  lastAnalyzedAt: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
 });
 
 const ErrorSchema = z.object({

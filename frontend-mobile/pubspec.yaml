@@ -67,7 +67,7 @@ dependencies:
   json_annotation: ^4.9.0
 
   # 직렬화 Freezed
-  freezed_annotation: ^2.0.3
+  freezed_annotation: ^3.0.0
 
   #토스트 메시지
   fluttertoast: ^8.0.9
@@ -78,6 +78,7 @@ dependencies:
 
   # 디바이스 이미지 불러오기
   photo_manager: ^3.0.0
+  flutter_better_auth: ^0.1.3
 
 dev_dependencies:
   flutter_test:
@@ -90,7 +91,7 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
   build_runner: ^2.4.11
-  freezed: ^2.0.3
+  freezed: ^3.0.0
   json_serializable: ^6.7.0
   analyzer: ^7.7.1
 
