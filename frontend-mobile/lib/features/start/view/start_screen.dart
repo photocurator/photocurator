@@ -3,7 +3,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart'; // Provider import
 import 'package:photocurator/common/theme/colors.dart';
-import 'package:photocurator/features/start/view_model/project_model.dart';
 import 'package:photocurator/features/start/view/project_card.dart';
 import 'package:photocurator/features/start/view/project_list_item.dart';
 import 'package:photocurator/features/start/view_model/start_view_model.dart';

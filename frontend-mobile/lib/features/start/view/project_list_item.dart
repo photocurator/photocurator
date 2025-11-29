@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:photocurator/common/theme/colors.dart';
-import 'package:photocurator/features/start/view_model/project_model.dart';
+import 'package:photocurator/features/start/service/project_service.dart';
 
 class ProjectListItem extends StatelessWidget {
   final Project project;
@@ -34,7 +34,7 @@ class ProjectListItem extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                project.name,
+                project.projectName,
                 style: const TextStyle(
                   fontFamily: 'NotoSansRegular',
                   fontSize: 16,
