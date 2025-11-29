@@ -17,6 +17,7 @@ import {
 } from '../db/schema';
 import { eq, and, or, ilike, gt, desc, asc, sql, exists, inArray, SQL } from 'drizzle-orm';
 import { AuthType } from '../lib/auth';
+import { randomUUID } from 'crypto';
 
 type Variables = {
   user: AuthType['user'];
@@ -311,6 +312,100 @@ app.openapi(getImagesRoute, async (c) => {
     });
   });
 
+const getImageFileRoute = createRoute({
+  method: 'get',
+  path: '/{imageId}/file',
+  summary: 'Get image file',
+  description: 'Serves the actual image file. Requires authentication.',
+  request: {
+    params: z.object({
+      imageId: z.uuid(),
+    }),
+  },
+  responses: {
+    200: {
+      description: 'The image file.',
+      content: {
+        'image/*': {
+          schema: z.string().openapi({ format: 'binary' }),
+        },
+      },
+    },
+    401: {
+        description: 'Unauthorized access.',
+        content: {
+            'application/json': {
+            schema: ErrorSchema,
+            },
+        },
+    },
+    404: {
+        description: 'Image not found or unauthorized.',
+        content: {
+            'application/json': {
+            schema: ErrorSchema,
+            },
+        },
+    },
+  },
+});
+
+app.openapi(getImageFileRoute, async (c) => {
+    const { imageId } = c.req.param();
+    const user = c.get('user');
+
+    if (!user) {
+        return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const imageRecord = await db
+        .select({
+            storagePath: imageTable.storagePath,
+            mimeType: imageTable.mimeType,
+        })
+        .from(imageTable)
+        .where(and(eq(imageTable.id, imageId), eq(imageTable.userId, user.id))) // Ensure user owns the image (or project logic)
+        .limit(1);
+        
+    // Note: The ownership check above restricts to images directly owned by user. 
+    // If project sharing is involved, we might need to check project ownership/membership as well.
+    // Since getImagesRoute checks "eq(imageTable.userId, user.id) OR (project.userId == user.id)", we should match that.
+    
+    if (imageRecord.length === 0) {
+        // Try checking via project ownership if not direct owner
+        const imageInProject = await db
+            .select({
+                storagePath: imageTable.storagePath,
+                mimeType: imageTable.mimeType,
+            })
+            .from(imageTable)
+            .innerJoin(project, eq(imageTable.projectId, project.id))
+            .where(and(
+                eq(imageTable.id, imageId),
+                eq(project.userId, user.id)
+            ))
+            .limit(1);
+
+        if (imageInProject.length > 0) {
+             const file = Bun.file(imageInProject[0].storagePath);
+             return new Response(file, {
+                 headers: {
+                     'Content-Type': imageInProject[0].mimeType,
+                 },
+             });
+        }
+
+        return c.json({ error: 'Image not found or unauthorized' }, 404);
+    }
+
+    const file = Bun.file(imageRecord[0].storagePath);
+    return new Response(file, {
+        headers: {
+            'Content-Type': imageRecord[0].mimeType,
+        },
+    });
+});
+
 const patchImageRoute = createRoute({
     method: 'patch',
     path: '/{imageId}',
@@ -431,9 +526,11 @@ app.openapi(putImageSelectionRoute, async (c) => {
         return c.json({ error: 'Unauthorized' }, 401);
     }
 
+    const id = randomUUID();
     await db
         .insert(imageSelection)
         .values({
+            id,
             imageId,
             userId: user.id,
             isPicked,
@@ -498,16 +595,31 @@ app.openapi(postImageRejectRoute, async (c) => {
         return c.json({ error: 'Unauthorized' }, 401);
     }
 
+    const dbReasonCode = (
+        reasonCode === 'BLURRY' ? 'out_of_focus' :
+        reasonCode === 'BAD_COMPOSITION' ? 'poor_composition' :
+        reasonCode === 'DUPLICATE' ? 'duplicate' :
+        'other'
+    ) as typeof userRejectionReason.$inferInsert['reasonCode'];
+
+    const finalReasonText = reasonCode === 'CLOSED_EYES' 
+        ? (reasonText ? `Closed eyes: ${reasonText}` : 'Closed eyes')
+        : reasonText;
+
+    const rejectionId = randomUUID();
     await db.insert(userRejectionReason).values({
+        id: rejectionId,
         imageId,
         userId: user.id,
-        reasonCode,
-        reasonText,
+        reasonCode: dbReasonCode,
+        reasonText: finalReasonText,
     });
 
+    const selectionId = randomUUID();
     await db
         .insert(imageSelection)
         .values({
+            id: selectionId,
             imageId,
             userId: user.id,
             isRejected: true,

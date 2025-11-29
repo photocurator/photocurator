@@ -397,6 +397,13 @@ const uploadProjectImagesHandler: AppRouteHandler<typeof uploadProjectImagesRout
     const storagePath = `storage/images/${projectId}`;
     await mkdir(storagePath, { recursive: true });
 
+    const [currentProject] = await db
+        .select({ coverImageId: project.coverImageId })
+        .from(project)
+        .where(eq(project.id, projectId));
+
+    let isFirstImage = !currentProject?.coverImageId;
+
     for (const file of files) {
         const imageId = randomUUID();
         const extension = path.extname(file.name);
@@ -413,6 +420,13 @@ const uploadProjectImagesHandler: AppRouteHandler<typeof uploadProjectImagesRout
             fileSizeBytes: file.size,
             mimeType: file.type,
         });
+
+        if (isFirstImage) {
+            await db.update(project)
+                .set({ coverImageId: imageId, updatedAt: new Date() })
+                .where(eq(project.id, projectId));
+            isFirstImage = false;
+        }
     }
 
     return c.json({ message: 'Upload successful' }, 202);
