@@ -3,13 +3,14 @@
  * This file is the main entry point for the Hono web server.
  * It sets up the server, defines middleware for authentication, and registers API routes.
  */
-import { OpenAPIHono } from 'hono-zod-openapi';
+import { OpenAPIHono } from '@hono/zod-openapi';
 import { swaggerUI } from '@hono/swagger-ui';
 import { auth, AuthType } from './lib/auth';
 import projects from './routes/projects';
 import images from './routes/images';
 import users from './routes/users';
 import ads from './routes/ads';
+import { Context } from 'hono';
 
 /**
  * Defines the variables that will be available on the Hono context.
@@ -49,7 +50,7 @@ app.use('*', async (c, next) => {
  * @param {Context} c - The Hono context object.
  * @returns {Response} The response from the authentication handler.
  */
-app.on(['POST', 'GET'], '/api/auth/*', (c) => {
+app.on(['POST', 'GET'], '/api/auth/*', (c: Context<{ Variables: Variables }>) => {
   return auth.handler(c.req.raw);
 });
 

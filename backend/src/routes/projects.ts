@@ -3,38 +3,53 @@
  * This file defines the API routes for managing projects, including creating projects,
  * retrieving project details, and handling image uploads and analysis within a project.
  */
-import { OpenAPIHono, createRoute } from 'hono-zod-openapi';
+import { OpenAPIHono, createRoute, extendZodWithOpenApi } from '@hono/zod-openapi';
+import type { RouteHandler } from '@hono/zod-openapi';
 import { z } from 'zod';
 import { db } from '../db';
 import { project, image, qualityScore, imageSelection, objectTag, analysisJob, analysisJobItem } from '../db/schema';
 import { eq, and, gt, desc, inArray } from 'drizzle-orm';
+import type { SQL } from 'drizzle-orm';
 import { mkdir, writeFile } from 'fs/promises';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import { AuthType } from '../lib/auth';
+
+extendZodWithOpenApi(z);
 
 type Variables = {
   user: AuthType['user'];
   session: AuthType['session'];
 };
 
-const app = new OpenAPIHono<{ Variables: Variables }>();
+type Bindings = {
+  AI_SERVICE_URL?: string;
+};
+
+type AppEnv = {
+  Bindings: Bindings;
+  Variables: Variables;
+};
+
+type AppRouteHandler<R extends ReturnType<typeof createRoute>> = RouteHandler<R, AppEnv>;
+
+const app = new OpenAPIHono<AppEnv>();
 
 const ProjectSchema = z.object({
-  id: z.string().uuid(),
-  userId: z.string().uuid(),
+  id: z.uuid(),
+  userId: z.uuid(),
   projectName: z.string(),
   description: z.string().nullable(),
   coverImageId: z.string().nullable(),
   isArchived: z.boolean(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
-  archivedAt: z.string().datetime().nullable(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+  archivedAt: z.iso.datetime().nullable(),
 });
 
 const ImageSchema = z.object({
-    id: z.string().uuid(),
-    userId: z.string().uuid().nullable(),
-    projectId: z.string().uuid(),
+    id: z.uuid(),
+    userId: z.uuid().nullable(),
+    projectId: z.uuid(),
     originalFilename: z.string(),
     storagePath: z.string(),
     thumbnailPath: z.string().nullable(),
@@ -43,37 +58,37 @@ const ImageSchema = z.object({
     widthPx: z.number().nullable(),
     heightPx: z.number().nullable(),
     compareViewSelected: z.boolean(),
-    captureDatetime: z.string().datetime().nullable(),
-    uploadDatetime: z.string().datetime(),
-    createdAt: z.string().datetime(),
-    updatedAt: z.string().datetime(),
+    captureDatetime: z.iso.datetime().nullable(),
+    uploadDatetime: z.iso.datetime(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
   });
 
 const QualityScoreSchema = z.object({
-    id: z.string().uuid(),
-    imageId: z.string().uuid(),
+    id: z.uuid(),
+    imageId: z.uuid(),
     brisqueScore: z.string().nullable(),
     tenegradScore: z.string().nullable(),
     musiqScore: z.string().nullable(),
     modelVersion: z.string(),
-    updatedAt: z.string().datetime(),
-    createdAt: z.string().datetime(),
+    updatedAt: z.iso.datetime(),
+    createdAt: z.iso.datetime(),
     });
 
 const ImageSelectionSchema = z.object({
-    id: z.string().uuid(),
-    imageId: z.string().uuid(),
-    userId: z.string().uuid(),
+    id: z.uuid(),
+    imageId: z.uuid(),
+    userId: z.uuid(),
     isPicked: z.boolean(),
     isRejected: z.boolean(),
     rating: z.number().nullable(),
-    selectedAt: z.string().datetime(),
-    updatedAt: z.string().datetime(),
+    selectedAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
     });
 
 const ObjectTagSchema = z.object({
-    id: z.string().uuid(),
-    imageId: z.string().uuid(),
+    id: z.uuid(),
+    imageId: z.uuid(),
     tagName: z.string(),
     tagCategory: z.string().nullable(),
     confidence: z.string().nullable(),
@@ -82,8 +97,8 @@ const ObjectTagSchema = z.object({
     boundingBoxWidth: z.number().nullable(),
     boundingBoxHeight: z.number().nullable(),
     modelVersion: z.string(),
-    updatedAt: z.string().datetime(),
-    createdAt: z.string().datetime(),
+    updatedAt: z.iso.datetime(),
+    createdAt: z.iso.datetime(),
     });
 
 const ImageDetailSchema = z.object({
@@ -93,9 +108,19 @@ const ImageDetailSchema = z.object({
     objectTags: z.array(ObjectTagSchema),
   });
 
+type ObjectTagRow = typeof objectTag.$inferSelect;
+
 const ErrorSchema = z.object({
   error: z.string(),
 });
+
+const FileUploadSchema = z
+  .instanceof(File)
+  .openapi({
+    type: 'string',
+    format: 'binary',
+    description: 'Binary image file uploaded via multipart/form-data.',
+  });
 
 const getProjectsRoute = createRoute({
   method: 'get',
@@ -122,7 +147,7 @@ const getProjectsRoute = createRoute({
   },
 });
 
-app.openapi(getProjectsRoute, async (c) => {
+const getProjectsHandler: AppRouteHandler<typeof getProjectsRoute> = async (c) => {
     const user = c.get('user');
 
     if (!user) {
@@ -134,8 +159,10 @@ app.openapi(getProjectsRoute, async (c) => {
         .from(project)
         .where(eq(project.userId, user.id));
 
-    return c.json(projectList);
-});
+    return c.json(projectList, 200);
+};
+
+app.openapi(getProjectsRoute, getProjectsHandler);
 
 const createProjectRoute = createRoute({
     method: 'post',
@@ -174,7 +201,7 @@ const createProjectRoute = createRoute({
     },
 });
 
-app.openapi(createProjectRoute, async (c) => {
+const createProjectHandler: AppRouteHandler<typeof createProjectRoute> = async (c) => {
     const { name, description } = c.req.valid('json');
     const user = c.get('user');
 
@@ -182,17 +209,21 @@ app.openapi(createProjectRoute, async (c) => {
         return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const newProject = await db
+    const projectId = randomUUID();
+    const [newProject] = await db
         .insert(project)
         .values({
+            id: projectId,
             projectName: name,
             description,
             userId: user.id,
         })
         .returning();
 
-    return c.json(newProject[0], 201);
-});
+    return c.json(newProject, 201);
+};
+
+app.openapi(createProjectRoute, createProjectHandler);
 
 const getProjectImagesRoute = createRoute({
     method: 'get',
@@ -201,7 +232,7 @@ const getProjectImagesRoute = createRoute({
     description: 'Retrieves a paginated and filtered list of images within a specific project.',
     request: {
         params: z.object({
-            projectId: z.string().uuid(),
+            projectId: z.uuid(),
         }),
         query: z.object({
             viewType: z.enum(['ALL', 'PICKED', 'TRASH', 'BEST_SHOTS']).default('ALL'),
@@ -232,7 +263,7 @@ const getProjectImagesRoute = createRoute({
     },
 });
 
-app.openapi(getProjectImagesRoute, async (c) => {
+const getProjectImagesHandler: AppRouteHandler<typeof getProjectImagesRoute> = async (c) => {
     const { projectId } = c.req.param();
     const { viewType, minQualityScore, nextCursor } = c.req.valid('query');
     const user = c.get('user');
@@ -241,39 +272,44 @@ app.openapi(getProjectImagesRoute, async (c) => {
         return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    let query = db
-        .select({
-            image: image,
-            qualityScore: qualityScore,
-            imageSelection: imageSelection,
-        })
-        .from(image)
-        .where(eq(image.projectId, projectId))
-        .leftJoin(qualityScore, eq(qualityScore.imageId, image.id))
-        .leftJoin(imageSelection, eq(imageSelection.imageId, image.id));
+    const limit = 20;
+    const filters: SQL[] = [eq(image.projectId, projectId)];
 
     if (viewType === 'PICKED') {
-        query.where(eq(imageSelection.isPicked, true));
+        filters.push(eq(imageSelection.isPicked, true));
     } else if (viewType === 'TRASH') {
-        query.where(eq(imageSelection.isRejected, true));
-    } else if (viewType === 'BEST_SHOTS') {
-        query.orderBy(desc(qualityScore.musiqScore));
+        filters.push(eq(imageSelection.isRejected, true));
     }
 
-    if (minQualityScore) {
-        query.where(gt(qualityScore.musiqScore, minQualityScore.toString()));
+    if (typeof minQualityScore === 'number' && !Number.isNaN(minQualityScore)) {
+        filters.push(gt(qualityScore.musiqScore, minQualityScore.toString()));
     }
 
-    const limit = 20;
     if (nextCursor) {
-        query.where(gt(image.id, nextCursor));
+        filters.push(gt(image.id, nextCursor));
     }
-    query.limit(limit);
 
-    const imageList = await query;
+    const whereClause = filters.length === 1 ? filters[0] : and(...filters)!;
+
+    const baseQuery = db
+        .select({
+            image,
+            qualityScore,
+            imageSelection,
+        })
+        .from(image)
+        .leftJoin(qualityScore, eq(qualityScore.imageId, image.id))
+        .leftJoin(imageSelection, eq(imageSelection.imageId, image.id))
+        .where(whereClause);
+
+    const orderedQuery = viewType === 'BEST_SHOTS'
+        ? baseQuery.orderBy(desc(qualityScore.musiqScore))
+        : baseQuery.orderBy(desc(image.createdAt));
+
+    const imageList = await orderedQuery.limit(limit);
 
     if (imageList.length === 0) {
-        return c.json({ data: [], nextCursor: null });
+        return c.json({ data: [], nextCursor: null }, 200);
     }
 
     const imageIds = imageList.map(i => i.image.id);
@@ -282,7 +318,7 @@ app.openapi(getProjectImagesRoute, async (c) => {
         .from(objectTag)
         .where(inArray(objectTag.imageId, imageIds));
 
-    const tagsByImageId = tags.reduce((acc, tag) => {
+    const tagsByImageId = tags.reduce<Record<string, ObjectTagRow[]>>((acc, tag) => {
         if (!acc[tag.imageId]) {
             acc[tag.imageId] = [];
         }
@@ -292,14 +328,16 @@ app.openapi(getProjectImagesRoute, async (c) => {
 
     const responseData = imageList.map(i => ({
         ...i,
-        objectTags: tagsByImageId[i.image.id] || [],
+        objectTags: tagsByImageId[i.image.id] ?? [],
     }));
 
     const lastImage = imageList[imageList.length - 1];
     const newNextCursor = lastImage ? lastImage.image.id : null;
 
-    return c.json({ data: responseData, nextCursor: newNextCursor });
-});
+    return c.json({ data: responseData, nextCursor: newNextCursor }, 200);
+};
+
+app.openapi(getProjectImagesRoute, getProjectImagesHandler);
 
 const uploadProjectImagesRoute = createRoute({
     method: 'post',
@@ -308,13 +346,13 @@ const uploadProjectImagesRoute = createRoute({
     description: 'Handles the upload of one or more images to a project.',
     request: {
         params: z.object({
-            projectId: z.string().uuid(),
+            projectId: z.uuid(),
         }),
         body: {
             content: {
                 'multipart/form-data': {
                     schema: z.object({
-                        'files[]': z.array(z.instanceof(File)),
+                        'files[]': z.array(FileUploadSchema).min(1),
                     }),
                 },
             },
@@ -342,7 +380,7 @@ const uploadProjectImagesRoute = createRoute({
     },
 });
 
-app.openapi(uploadProjectImagesRoute, async (c) => {
+const uploadProjectImagesHandler: AppRouteHandler<typeof uploadProjectImagesRoute> = async (c) => {
     const { projectId } = c.req.param();
     const user = c.get('user');
 
@@ -351,13 +389,15 @@ app.openapi(uploadProjectImagesRoute, async (c) => {
     }
 
     const body = await c.req.parseBody();
-    const files = body['files[]'] as File[];
+    const parsedFiles = body['files[]'];
+    const files = (Array.isArray(parsedFiles) ? parsedFiles : parsedFiles ? [parsedFiles] : [])
+        .filter((file): file is File => file instanceof File);
 
     const storagePath = `storage/images/${projectId}`;
     await mkdir(storagePath, { recursive: true });
 
     for (const file of files) {
-        const imageId = uuidv4();
+        const imageId = randomUUID();
         const filePath = `${storagePath}/${imageId}`;
         const buffer = await file.arrayBuffer();
         await writeFile(filePath, Buffer.from(buffer));
@@ -374,7 +414,9 @@ app.openapi(uploadProjectImagesRoute, async (c) => {
     }
 
     return c.json({ message: 'Upload successful' }, 202);
-});
+};
+
+app.openapi(uploadProjectImagesRoute, uploadProjectImagesHandler);
 
 const analyzeProjectRoute = createRoute({
     method: 'post',
@@ -383,7 +425,7 @@ const analyzeProjectRoute = createRoute({
     description: 'Initiates an analysis job for all images in a project.',
     request: {
         params: z.object({
-            projectId: z.string().uuid(),
+            projectId: z.uuid(),
         }),
         body: {
             content: {
@@ -415,7 +457,20 @@ const analyzeProjectRoute = createRoute({
     },
 });
 
-app.openapi(analyzeProjectRoute, async (c) => {
+type AnalyzeProjectRequestBody = z.infer<
+    typeof analyzeProjectRoute['request']['body']['content']['application/json']['schema']
+>;
+
+const apiJobTypeToDbJobType: Record<
+    AnalyzeProjectRequestBody['jobType'],
+    typeof analysisJob.$inferInsert['jobType']
+> = {
+    FULL_SCAN: 'quality_analysis',
+    OBJECT_DETECTION_ONLY: 'object_detection',
+    SCORING_ONLY: 'quality_analysis',
+};
+
+const analyzeProjectHandler: AppRouteHandler<typeof analyzeProjectRoute> = async (c) => {
     const { projectId } = c.req.param();
     const { jobType } = c.req.valid('json');
     const user = c.get('user');
@@ -424,21 +479,25 @@ app.openapi(analyzeProjectRoute, async (c) => {
         return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const newJob = await db.insert(analysisJob).values({
+    const jobId = randomUUID();
+    const [newJob] = await db.insert(analysisJob).values({
+        id: jobId,
         projectId,
         userId: user.id,
-        jobType,
+        jobType: apiJobTypeToDbJobType[jobType],
     }).returning();
 
     const imagesToAnalyze = await db.select().from(image).where(eq(image.projectId, projectId));
 
-    const jobItems = [];
+    const jobItems: typeof analysisJobItem.$inferSelect[] = [];
     for (const imageToAnalyze of imagesToAnalyze) {
-        const newJobItem = await db.insert(analysisJobItem).values({
-            jobId: newJob[0].id,
+        const jobItemId = randomUUID();
+        const [newJobItem] = await db.insert(analysisJobItem).values({
+            id: jobItemId,
+            jobId: newJob.id,
             imageId: imageToAnalyze.id,
         }).returning();
-        jobItems.push(newJobItem[0]);
+        jobItems.push(newJobItem);
     }
 
     let task_name = 'quality_assessment';
@@ -461,8 +520,10 @@ app.openapi(analyzeProjectRoute, async (c) => {
         body: JSON.stringify(batchRequest),
     });
 
-    return c.json(newJob[0], 202);
-});
+    return c.json(newJob, 202);
+};
+
+app.openapi(analyzeProjectRoute, analyzeProjectHandler);
 
 const getAnalysisStatusRoute = createRoute({
     method: 'get',
@@ -471,7 +532,7 @@ const getAnalysisStatusRoute = createRoute({
     description: 'Retrieves the status of the latest analysis job for a project.',
     request: {
         params: z.object({
-            projectId: z.string().uuid(),
+            projectId: z.uuid(),
         }),
     },
     responses: {
@@ -480,7 +541,7 @@ const getAnalysisStatusRoute = createRoute({
             content: {
                 'application/json': {
                     schema: z.object({
-                        jobId: z.string().uuid(),
+                        jobId: z.uuid(),
                         status: z.string(),
                         progressPercentage: z.number(),
                         completedItems: z.number(),
@@ -508,7 +569,7 @@ const getAnalysisStatusRoute = createRoute({
     },
 });
 
-app.openapi(getAnalysisStatusRoute, async (c) => {
+const getAnalysisStatusHandler: AppRouteHandler<typeof getAnalysisStatusRoute> = async (c) => {
     const { projectId } = c.req.param();
     const user = c.get('user');
 
@@ -542,7 +603,9 @@ app.openapi(getAnalysisStatusRoute, async (c) => {
         progressPercentage,
         completedItems,
         totalItems,
-    });
-});
+    }, 200);
+};
+
+app.openapi(getAnalysisStatusRoute, getAnalysisStatusHandler);
 
 export default app;

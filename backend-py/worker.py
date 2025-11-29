@@ -5,10 +5,13 @@ from src.db import get_db_connection
 import os
 import importlib
 
+broker_url = os.getenv("CELERY_BROKER_URL", "pyamqp://guest@localhost//")
+backend_url = os.getenv("CELERY_RESULT_BACKEND", "rpc://")
+
 app = Celery(
     "worker",
-    broker="pyamqp://guest@localhost//",
-    backend="rpc://"
+    broker=broker_url,
+    backend=backend_url
 )
 
 def get_db_conn_and_cursor():
