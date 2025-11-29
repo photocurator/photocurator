@@ -8,6 +8,17 @@ enum JoinPageState {
   success,
 }
 
+JoinPageState joinPageStateFromParam(String? value) {
+  switch (value) {
+    case 'error':
+      return JoinPageState.error;
+    case 'success':
+      return JoinPageState.success;
+    default:
+      return JoinPageState.initial;
+  }
+}
+
 class JoinViewModel extends ChangeNotifier {
   // 생성자: 초기 상태 주입 가능
   JoinViewModel({JoinPageState? initialState})
