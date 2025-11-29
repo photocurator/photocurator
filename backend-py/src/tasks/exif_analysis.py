@@ -1,3 +1,4 @@
+"""This module defines the Celery task for extracting EXIF and GPS data from images."""
 from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
 import os
@@ -8,9 +9,19 @@ from .base import ImageProcessingTask
 
 @register_task("exif_analysis")
 class ExifAnalysisTask(ImageProcessingTask):
+    """A Celery task to extract EXIF and GPS metadata from an image and store it in the database.
+    """
 
     def _get_exif_data(self, image_path):
-        """Extracts EXIF data from an image."""
+        """Extracts EXIF and GPS data from an image file.
+
+        Args:
+            image_path (str): The path to the image file.
+
+        Returns:
+            tuple: A tuple containing the decoded EXIF data and GPS information,
+                   or (None, None) if no EXIF data is found or an error occurs.
+        """
         try:
             image = Image.open(image_path)
             exif_data = image._getexif()
@@ -29,7 +40,15 @@ class ExifAnalysisTask(ImageProcessingTask):
             return None, None
 
     def _convert_dms_to_dd(self, dms, ref):
-        """Converts DMS (Degrees, Minutes, Seconds) to DD (Decimal Degrees)."""
+        """Converts GPS coordinates from DMS (Degrees, Minutes, Seconds) to DD (Decimal Degrees).
+
+        Args:
+            dms (tuple): A tuple of degrees, minutes, and seconds.
+            ref (str): The reference direction (e.g., 'N', 'S', 'E', 'W').
+
+        Returns:
+            float: The GPS coordinate in decimal degrees.
+        """
         degrees = dms[0]
         minutes = dms[1] / 60.0
         seconds = dms[2] / 3600.0
@@ -40,6 +59,14 @@ class ExifAnalysisTask(ImageProcessingTask):
         return dd
 
     def run(self, image_id: str):
+        """The main execution method for the task.
+
+        This method retrieves the image path from the database, extracts EXIF and GPS data,
+        and then stores the extracted data back into the database.
+
+        Args:
+            image_id (str): The ID of the image to be processed.
+        """
         conn = None
         cur = None
         try:

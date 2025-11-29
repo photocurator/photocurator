@@ -1,3 +1,8 @@
+/**
+ * @module db/schema/analysis
+ * This file defines the database schema for storing image analysis results,
+ * including quality scores, object tags, captions, and user feedback.
+ */
 import { pgTable, text, timestamp, decimal, integer } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { image } from "./image";
@@ -5,6 +10,9 @@ import { imageGroup } from "./imageGroup";
 import { rejectionReasonEnum } from "./enums";
 import { user } from "./auth";
 
+/**
+ * The `quality_score` table stores various quality metrics for an image.
+ */
 export const qualityScore = pgTable("quality_score", {
   id: text("id").primaryKey(),
   imageId: text("image_id")
@@ -23,6 +31,9 @@ export const qualityScore = pgTable("quality_score", {
     .notNull(),
 });
 
+/**
+ * The `best_shot_recommendation` table stores recommendations for the best image within a group.
+ */
 export const bestShotRecommendation = pgTable("best_shot_recommendation", {
   id: text("id").primaryKey(),
   imageId: text("image_id")
@@ -41,6 +52,9 @@ export const bestShotRecommendation = pgTable("best_shot_recommendation", {
     .notNull(),
 });
 
+/**
+ * The `object_tag` table stores information about objects detected in an image.
+ */
 export const objectTag = pgTable("object_tag", {
   id: text("id").primaryKey(),
   imageId: text("image_id")
@@ -63,6 +77,9 @@ export const objectTag = pgTable("object_tag", {
     .notNull(),
 });
 
+/**
+ * The `image_caption` table stores captions generated for an image.
+ */
 export const imageCaption = pgTable("image_caption", {
   id: text("id").primaryKey(),
   imageId: text("image_id")
@@ -79,6 +96,9 @@ export const imageCaption = pgTable("image_caption", {
     .notNull(),
 });
 
+/**
+ * The `user_rejection_reason` table stores the reasons why a user rejected an image.
+ */
 export const userRejectionReason = pgTable("user_rejection_reason", {
   id: text("id").primaryKey(),
   imageId: text("image_id")
@@ -95,6 +115,9 @@ export const userRejectionReason = pgTable("user_rejection_reason", {
 });
 
 // Relations
+/**
+ * Defines the relations for the `quality_score` table.
+ */
 export const qualityScoreRelations = relations(qualityScore, ({ one }) => ({
   image: one(image, {
     fields: [qualityScore.imageId],
@@ -102,6 +125,9 @@ export const qualityScoreRelations = relations(qualityScore, ({ one }) => ({
   }),
 }));
 
+/**
+ * Defines the relations for the `best_shot_recommendation` table.
+ */
 export const bestShotRecommendationRelations = relations(bestShotRecommendation, ({ one }) => ({
   image: one(image, {
     fields: [bestShotRecommendation.imageId],
@@ -113,6 +139,9 @@ export const bestShotRecommendationRelations = relations(bestShotRecommendation,
   }),
 }));
 
+/**
+ * Defines the relations for the `object_tag` table.
+ */
 export const objectTagRelations = relations(objectTag, ({ one }) => ({
   image: one(image, {
     fields: [objectTag.imageId],
@@ -120,6 +149,9 @@ export const objectTagRelations = relations(objectTag, ({ one }) => ({
   }),
 }));
 
+/**
+ * Defines the relations for the `user_rejection_reason` table.
+ */
 export const userRejectionReasonRelations = relations(userRejectionReason, ({ one }) => ({
   image: one(image, {
     fields: [userRejectionReason.imageId],
@@ -131,6 +163,9 @@ export const userRejectionReasonRelations = relations(userRejectionReason, ({ on
   }),
 }));
 
+/**
+ * Defines the relations for the `image_caption` table.
+ */
 export const imageCaptionRelations = relations(imageCaption, ({ one }) => ({
   image: one(image, {
     fields: [imageCaption.imageId],

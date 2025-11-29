@@ -1,3 +1,4 @@
+"""This module defines the Celery task for detecting objects in images."""
 import torch
 from ultralytics import YOLO
 from PIL import Image
@@ -9,14 +10,25 @@ import uuid
 
 @register_task("object_detection")
 class ObjectDetectionTask(ImageProcessingTask):
+    """A Celery task to detect objects in an image using a YOLO model.
+    """
     model = None
 
     def _load_model(self):
+        """Lazily loads the YOLO object detection model."""
         if self.model is None:
             # Using yolov10x as yolov12x is not a recognized model.
             self.model = YOLO("yolov10x.pt")
 
     def run(self, image_id: str):
+        """The main execution method for the task.
+
+        This method retrieves the image path from the database, runs object detection using the YOLO model,
+        and then stores the detected object tags and their bounding boxes back into the database.
+
+        Args:
+            image_id (str): The ID of the image to be processed.
+        """
         self._load_model()
 
         conn = None

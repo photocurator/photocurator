@@ -1,9 +1,16 @@
+/**
+ * @module db/schema/advertisement
+ * This file defines the database schema for advertisements, including targeting rules and impressions.
+ */
 import { pgTable, text, timestamp, boolean, integer, decimal } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { adTypeEnum, userSegmentEnum } from "./enums";
 import { user } from "./auth";
 import { project } from "./project";
 
+/**
+ * The `advertisement` table stores information about advertisements.
+ */
 export const advertisement = pgTable("advertisement", {
   id: text("id").primaryKey(),
   adType: adTypeEnum("ad_type").notNull(),
@@ -18,6 +25,9 @@ export const advertisement = pgTable("advertisement", {
   expiresAt: timestamp("expires_at"),
 });
 
+/**
+ * The `ad_targeting_rule` table stores the rules for targeting advertisements to users.
+ */
 export const adTargetingRule = pgTable("ad_targeting_rule", {
   id: text("id").primaryKey(),
   adId: text("ad_id")
@@ -35,6 +45,9 @@ export const adTargetingRule = pgTable("ad_targeting_rule", {
     .notNull(),
 });
 
+/**
+ * The `ad_impression` table tracks when an advertisement has been shown to a user.
+ */
 export const adImpression = pgTable("ad_impression", {
   id: text("id").primaryKey(),
   adId: text("ad_id")
@@ -53,11 +66,17 @@ export const adImpression = pgTable("ad_impression", {
 });
 
 // Relations
+/**
+ * Defines the relations for the `advertisement` table.
+ */
 export const advertisementRelations = relations(advertisement, ({ many }) => ({
   targetingRules: many(adTargetingRule),
   impressions: many(adImpression),
 }));
 
+/**
+ * Defines the relations for the `ad_targeting_rule` table.
+ */
 export const adTargetingRuleRelations = relations(adTargetingRule, ({ one }) => ({
   ad: one(advertisement, {
     fields: [adTargetingRule.adId],
@@ -65,6 +84,9 @@ export const adTargetingRuleRelations = relations(adTargetingRule, ({ one }) => 
   }),
 }));
 
+/**
+ * Defines the relations for the `ad_impression` table.
+ */
 export const adImpressionRelations = relations(adImpression, ({ one }) => ({
   ad: one(advertisement, {
     fields: [adImpression.adId],

@@ -1,3 +1,10 @@
+/**
+ * @module db/schema/index
+ * This file serves as the main entry point for all database schema modules.
+ * It aggregates and exports all the individual schema definitions, making them
+ * available for use by the Drizzle ORM.
+ */
+
 // Export all enums
 export * from "./enums";
 

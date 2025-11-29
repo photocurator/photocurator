@@ -1,3 +1,7 @@
+/**
+ * @module db/schema/image
+ * This file defines the database schema for images, including their metadata, EXIF data, GPS coordinates, and user selections.
+ */
 import { pgTable, text, timestamp, boolean, bigint, integer, decimal } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { project } from "./project";
@@ -5,8 +9,13 @@ import { user } from "./auth";
 import { imageCaption, qualityScore, bestShotRecommendation, objectTag  } from "./analysis";
 import { imageGroupMembership } from "./imageGroup";
 
+/**
+ * The `image` table stores core information about each uploaded image.
+ */
 export const image = pgTable("image", {
   id: text("id").primaryKey(),
+  userId: text("user_id")
+    .references(() => user.id, { onDelete: "cascade" }),
   projectId: text("project_id")
     .notNull()
     .references(() => project.id, { onDelete: "cascade" }),
@@ -17,6 +26,7 @@ export const image = pgTable("image", {
   mimeType: text("mime_type").notNull(),
   widthPx: integer("width_px"),
   heightPx: integer("height_px"),
+  compareViewSelected: boolean("compare_view_selected").default(false).notNull(),
   captureDatetime: timestamp("capture_datetime"),
   uploadDatetime: timestamp("upload_datetime")
     .$defaultFn(() => new Date())
@@ -30,6 +40,9 @@ export const image = pgTable("image", {
     .notNull(),
 });
 
+/**
+ * The `image_exif` table stores EXIF metadata extracted from images.
+ */
 export const imageEXIF = pgTable("image_exif", {
   id: text("id").primaryKey(),
   imageId: text("image_id")
@@ -53,6 +66,9 @@ export const imageEXIF = pgTable("image_exif", {
     .notNull(),
 });
 
+/**
+ * The `image_gps` table stores GPS coordinates extracted from image metadata.
+ */
 export const imageGPS = pgTable("image_gps", {
   id: text("id").primaryKey(),
   imageId: text("image_id")
@@ -66,6 +82,9 @@ export const imageGPS = pgTable("image_gps", {
     .notNull(),
 });
 
+/**
+ * The `image_selection` table stores user selections for images, such as picks, rejections, and ratings.
+ */
 export const imageSelection = pgTable("image_selection", {
   id: text("id").primaryKey(),
   imageId: text("image_id")
@@ -87,7 +106,14 @@ export const imageSelection = pgTable("image_selection", {
 });
 
 // Relations
+/**
+ * Defines the relations for the `image` table.
+ */
 export const imageRelations = relations(image, ({ one, many }) => ({
+  user: one(user, {
+    fields: [image.userId],
+    references: [user.id],
+  }),
   project: one(project, {
     fields: [image.projectId],
     references: [project.id],
@@ -112,6 +138,9 @@ export const imageRelations = relations(image, ({ one, many }) => ({
   objectTags: many(objectTag),
 }));
 
+/**
+ * Defines the relations for the `image_exif` table.
+ */
 export const imageEXIFRelations = relations(imageEXIF, ({ one }) => ({
   image: one(image, {
     fields: [imageEXIF.imageId],
@@ -119,6 +148,9 @@ export const imageEXIFRelations = relations(imageEXIF, ({ one }) => ({
   }),
 }));
 
+/**
+ * Defines the relations for the `image_gps` table.
+ */
 export const imageGPSRelations = relations(imageGPS, ({ one }) => ({
   image: one(image, {
     fields: [imageGPS.imageId],
@@ -126,6 +158,9 @@ export const imageGPSRelations = relations(imageGPS, ({ one }) => ({
   }),
 }));
 
+/**
+ * Defines the relations for the `image_selection` table.
+ */
 export const imageSelectionRelations = relations(imageSelection, ({ one }) => ({
   image: one(image, {
     fields: [imageSelection.imageId],

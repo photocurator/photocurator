@@ -1,8 +1,15 @@
+/**
+ * @module db/schema/user
+ * This file defines the database schema for user-related analytics, such as search history and shooting patterns.
+ */
 import { pgTable, text, timestamp, integer, decimal } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { searchTypeEnum } from "./enums";
 import { user } from "./auth";
 
+/**
+ * The `user_search` table stores the history of user search queries.
+ */
 export const userSearch = pgTable("user_search", {
   id: text("id").primaryKey(),
   userId: text("user_id")
@@ -17,6 +24,9 @@ export const userSearch = pgTable("user_search", {
     .notNull(),
 });
 
+/**
+ * The `shooting_pattern` table stores aggregated data about a user's photography habits.
+ */
 export const shootingPattern = pgTable("shooting_pattern", {
   id: text("id").primaryKey(),
   userId: text("user_id")
@@ -35,6 +45,9 @@ export const shootingPattern = pgTable("shooting_pattern", {
 });
 
 // Relations
+/**
+ * Defines the relations for the `user_search` table.
+ */
 export const userSearchRelations = relations(userSearch, ({ one }) => ({
   user: one(user, {
     fields: [userSearch.userId],
@@ -42,6 +55,9 @@ export const userSearchRelations = relations(userSearch, ({ one }) => ({
   }),
 }));
 
+/**
+ * Defines the relations for the `shooting_pattern` table.
+ */
 export const shootingPatternRelations = relations(shootingPattern, ({ one }) => ({
   user: one(user, {
     fields: [shootingPattern.userId],

@@ -1,3 +1,4 @@
+"""This module defines the FastAPI server for enqueuing and monitoring Celery tasks."""
 from fastapi import FastAPI
 from pydantic import BaseModel
 from celery.result import AsyncResult
@@ -8,18 +9,31 @@ import uuid
 app = FastAPI()
 
 class TaskRequest(BaseModel):
+    """Request model for enqueuing a new image processing task."""
     image_id: str
     task_name: str
     project_id: str
     user_id: str
 
 class TaskStatus(BaseModel):
+    """Response model for the status of a Celery task."""
     task_id: str
     status: str
     result: dict | None = None
 
 @app.post("/tasks/", response_model=TaskStatus)
 def enqueue_task(task_request: TaskRequest):
+    """Enqueues a new image processing task.
+
+    This endpoint creates a new analysis job and a corresponding job item in the database,
+    then enqueues a Celery task to process the image.
+
+    Args:
+        task_request (TaskRequest): The request body containing the image ID, task name, project ID, and user ID.
+
+    Returns:
+        TaskStatus: The initial status of the enqueued task.
+    """
     conn = None
     cur = None
     try:
@@ -29,10 +43,10 @@ def enqueue_task(task_request: TaskRequest):
         job_id = str(uuid.uuid4())
         cur.execute(
             """
-            INSERT INTO analysis_job (id, project_id, user_id, job_type, created_at, updated_at)
-            VALUES (%s, %s, %s, %s, NOW(), NOW())
+            INSERT INTO analysis_job (id, project_id, user_id, job_type, job_status, created_at, updated_at)
+            VALUES (%s, %s, %s, %s, %s, NOW(), NOW())
             """,
-            (job_id, task_request.project_id, task_request.user_id, task_request.task_name)
+            (job_id, task_request.project_id, task_request.user_id, task_request.task_name, "pending")
         )
 
         job_item_id = str(uuid.uuid4())
@@ -56,6 +70,14 @@ def enqueue_task(task_request: TaskRequest):
 
 @app.get("/tasks/{task_id}", response_model=TaskStatus)
 def get_task_status(task_id: str):
+    """Retrieves the status of a Celery task.
+
+    Args:
+        task_id (str): The ID of the task to retrieve the status for.
+
+    Returns:
+        TaskStatus: The current status of the task, including the result if the task is complete.
+    """
     task_result = AsyncResult(task_id)
     result = task_result.result if task_result.ready() else None
     return TaskStatus(task_id=task_id, status=task_result.status, result=result)
