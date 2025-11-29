@@ -8,6 +8,7 @@ import { swaggerUI } from '@hono/swagger-ui';
 import { auth, AuthType } from './lib/auth';
 import projects from './routes/projects';
 import images from './routes/images';
+import search from './routes/search';
 import users from './routes/users';
 import ads from './routes/ads';
 import authRouter from './routes/auth';
@@ -51,6 +52,7 @@ app.use('*', async (c, next) => {
 app.route('/api/auth', authRouter);
 app.route('/api/projects', projects);
 app.route('/api/images', images);
+app.route('/api/search', search);
 app.route('/api/users', users);
 app.route('/api/ads', ads);
 

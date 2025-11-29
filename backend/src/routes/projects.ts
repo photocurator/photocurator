@@ -666,4 +666,66 @@ const getAnalysisStatusHandler: AppRouteHandler<typeof getAnalysisStatusRoute> =
 
 app.openapi(getAnalysisStatusRoute, getAnalysisStatusHandler);
 
+const getProjectDetectedObjectsRoute = createRoute({
+  method: 'get',
+  path: '/{projectId}/detected-objects',
+  summary: 'Get detected objects in a project',
+  description: 'Retrieves a list of all unique detected objects found in images belonging to a specific project.',
+  request: {
+    params: z.object({
+      projectId: z.uuid(),
+    }),
+  },
+  responses: {
+    200: {
+      description: 'Successful response with a list of unique detected object tags.',
+      content: {
+        'application/json': {
+          schema: z.array(z.string()),
+        },
+      },
+    },
+    401: {
+      description: 'Unauthorized access.',
+      content: {
+        'application/json': {
+          schema: ErrorSchema,
+        },
+      },
+    },
+  },
+});
+
+app.openapi(getProjectDetectedObjectsRoute, async (c) => {
+  const { projectId } = c.req.param();
+  const user = c.get('user');
+
+  if (!user) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  // Ensure user owns the project or has access to it
+  const projectCheck = await db
+    .select()
+    .from(project)
+    .where(and(eq(project.id, projectId), eq(project.userId, user.id)))
+    .limit(1);
+
+  if (projectCheck.length === 0) {
+     // If user doesn't own project, check if they own images in it (less likely but possible with sharing logic)
+     // For now, strict project ownership check as per other routes
+     return c.json([], 200); // Or 404/403
+  }
+
+  const detectedObjects = await db
+    .select({ tagName: objectTag.tagName })
+    .from(objectTag)
+    .innerJoin(image, eq(objectTag.imageId, image.id))
+    .where(eq(image.projectId, projectId))
+    .groupBy(objectTag.tagName)
+    .orderBy(objectTag.tagName);
+
+  return c.json(detectedObjects.map(d => d.tagName), 200);
+});
+
 export default app;
