@@ -95,9 +95,14 @@ class _LoginScreenState extends State<LoginScreen> {
             Padding(
               padding: const EdgeInsets.only(left: 8, top: 4),
               child: IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  color: AppColors.dg1C1F23,
+                icon: SvgPicture.asset(
+                  'assets/icons/button/arrow_left.svg',
+                  width: 24,
+                  height: 24,
+                  colorFilter: const ColorFilter.mode(
+                    AppColors.dg1C1F23, // 또는 Colors.black
+                    BlendMode.srcIn,
+                  ),
                 ),
                 onPressed: () {
                   if (context.canPop()) {
@@ -113,18 +118,19 @@ class _LoginScreenState extends State<LoginScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 22),
                 child: Column(
                   children: [
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 91),
                     _LogoMark(darkMode: true),
                     const SizedBox(height: 12),
                     const Text(
                       'Photocurator',
                       style: TextStyle(
-                        fontFamily: 'NotoSansExtraBold',
+                        fontFamily: 'Labrada',
                         fontSize: 28,
+                        fontWeight: FontWeight.bold,
                         color: AppColors.dg1C1F23,
                       ),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 112),
                     TextField(
                       controller: _idController,
                       textInputAction: TextInputAction.next,
@@ -178,6 +184,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             : const Text('로그인'),
                       ),
                     ),
+                    const SizedBox(height: 216),
                   ],
                 ),
               ),
@@ -196,13 +203,10 @@ class _LogoMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Widget logo = SvgPicture.asset(
-      'assets/icons/navigator/logo.svg',
+    final Widget logo = Image.asset(
+      'assets/icons/navigator/logo_black.png',
       width: 60,
       height: 60,
-      colorFilter: darkMode
-          ? const ColorFilter.mode(AppColors.dg1C1F23, BlendMode.srcIn)
-          : null,
     );
 
     return Center(
