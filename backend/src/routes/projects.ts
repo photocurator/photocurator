@@ -12,6 +12,7 @@ import { eq, and, gt, desc, inArray } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 import { mkdir, writeFile } from 'fs/promises';
 import { randomUUID } from 'crypto';
+import * as path from 'path';
 import { AuthType } from '../lib/auth';
 
 extendZodWithOpenApi(z);
@@ -398,7 +399,8 @@ const uploadProjectImagesHandler: AppRouteHandler<typeof uploadProjectImagesRout
 
     for (const file of files) {
         const imageId = randomUUID();
-        const filePath = `${storagePath}/${imageId}`;
+        const extension = path.extname(file.name);
+        const filePath = `${storagePath}/${imageId}${extension}`;
         const buffer = await file.arrayBuffer();
         await writeFile(filePath, Buffer.from(buffer));
 
@@ -513,7 +515,7 @@ const analyzeProjectHandler: AppRouteHandler<typeof analyzeProjectRoute> = async
         })),
     };
 
-    const aiServiceUrl = c.env.AI_SERVICE_URL || 'http://localhost:8001';
+    const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:8001';
     await fetch(`${aiServiceUrl}/batch-analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
