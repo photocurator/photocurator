@@ -17,7 +17,7 @@ class BottomNavigationViewModel extends ChangeNotifier {
         context.go('/search');
         break;
       case 1:
-        context.go('/home');
+        context.go('/start');
         break;
       case 2:
         context.go('/mypage');

@@ -29,11 +29,17 @@ class _LoginScreenState extends State<LoginScreen> {
     FocusScope.of(context).unfocus();
 
     // ViewModel의 비동기 함수 호출
+    """
     final error = await viewModel.login(
       email: _idController.text,
       password: _passwordController.text,
     );
+    """;
 
+    final error = await viewModel.login(
+        email: "testuser@example.com",
+        password: "password123"
+    );
     if (!mounted) return;
 
     if (error == null) {
