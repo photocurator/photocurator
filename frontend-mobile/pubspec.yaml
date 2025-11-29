@@ -82,6 +82,7 @@ dependencies:
 
   # auth api
   flutter_better_auth: ^0.1.2
+  path: ^1.9.1
 
 dependency_overrides:
   flutter_better_auth:

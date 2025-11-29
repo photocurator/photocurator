@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_better_auth/flutter_better_auth.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:path/path.dart' as path;
 
 class Project {
   final String id;
@@ -50,13 +51,12 @@ class ProjectService {
     if (_baseUrl == null || _baseUrl!.isEmpty) {
       throw Exception('API_BASE_URL not found in .env file');
     }
-    _dio.options.baseUrl = _baseUrl!;
   }
 
   Future<Project?> createProject(String projectName) async {
     try {
       final response = await _dio.post(
-        '/projects',
+        '$_baseUrl/projects',
         data: {
           'name': projectName,
         },
@@ -73,18 +73,20 @@ class ProjectService {
       return null;
     }
   }
+
   Future<String?> uploadImages(String projectId, List<String> photoPaths) async {
     try {
       final formData = FormData();
-      for (var path in photoPaths) {
+      for (var photoPath in photoPaths) {
+        final fileName = path.basename(photoPath);
         formData.files.add(MapEntry(
           'files',
-          await MultipartFile.fromFile(path),
+          await MultipartFile.fromFile(photoPath, filename: fileName),
         ));
       }
 
       final response = await _dio.post(
-        '/projects/$projectId/images',
+        '$_baseUrl/projects/$projectId/images',
         data: formData,
       );
 
@@ -102,7 +104,7 @@ class ProjectService {
 
   Future<List<Project>> getProjects() async {
     try {
-      final response = await _dio.get('/projects');
+      final response = await _dio.get('$_baseUrl/projects');
       if (response.statusCode == 200) {
         final List<dynamic> projectJsonList = response.data;
         return projectJsonList.map((json) => Project.fromJson(json)).toList();

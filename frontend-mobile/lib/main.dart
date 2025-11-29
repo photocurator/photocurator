@@ -11,7 +11,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
 
-  final String apiUrl = dotenv.env['API_BASE_URL'] ?? "https://rx.r1c.cc/api/auth";
+  final String apiUrl = dotenv.env['API_AUTH_BASE_URL'] ?? "https://rx.r1c.cc/api/auth";
 
   await FlutterBetterAuth.initialize(
     url: apiUrl,

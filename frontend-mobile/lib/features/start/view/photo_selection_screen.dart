@@ -174,7 +174,7 @@ class _PhotoSelectionScreenState extends State<PhotoSelectionScreen> {
                   final createdProject = await _projectService.createProject(widget.projectName);
                   if (createdProject != null) {
                     // Navigate to home or another screen
-                    context.go('/home');
+                    context.go('/start');
                   }
                 },
                 style: OutlinedButton.styleFrom(
@@ -210,7 +210,7 @@ class _PhotoSelectionScreenState extends State<PhotoSelectionScreen> {
                         print(message);
                       }
                     }
-                    context.go('/home');
+                    context.go('/start');
                   }
                 },
                 style: ElevatedButton.styleFrom(
