@@ -119,7 +119,7 @@ class _PhotoSelectionScreenState extends State<PhotoSelectionScreen> {
             padding: const EdgeInsets.only(right: 20),
             child: TextButton(
               onPressed: () {
-                Navigator.of(context).pop();
+                context.go('/start');
               },
               style: TextButton.styleFrom(
                 minimumSize: Size.zero,
