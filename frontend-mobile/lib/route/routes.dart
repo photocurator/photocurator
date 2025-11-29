@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:photocurator/common/navigator/view/bottom_navigation_bar.dart';
 import 'package:photocurator/features/auth/join/view/join_screen.dart';
 import 'package:photocurator/features/auth/login/view/login_screen.dart';
+import 'package:photocurator/features/home/view/home_screen.dart';
 import 'package:photocurator/features/start/view/start_screen.dart';
 import 'package:photocurator/features/mypage/view/mypage_screen.dart';
 import 'package:photocurator/features/onboarding/view/onboarding_second_screen.dart';
@@ -46,6 +47,16 @@ final AppRouter = GoRouter(
           state: joinPageStateFromParam(state.uri.queryParameters['state']),
         ),
       ),
+    ),
+    GoRoute(
+      path: '/home/:projectId',
+      pageBuilder: (context, state) {
+        final projectId = state.pathParameters['projectId']!;
+        return MaterialPage(
+          key: state.pageKey,
+          child: HomeScreen(projectId: projectId),
+        );
+      },
     ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {

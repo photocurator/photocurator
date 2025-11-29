@@ -262,7 +262,7 @@ class _StartScreenState extends State<StartScreen> {
         return ProjectCard(
           project: projects[index],
           isRecent: false,
-          onTap: () => context.go('/home'),
+          onTap: () => context.go('/home/${projects[index].id}'),
         );
       },
     );
@@ -276,7 +276,7 @@ class _StartScreenState extends State<StartScreen> {
       itemBuilder: (context, index) {
         return ProjectListItem(
           project: projects[index],
-          onTap: () => context.go('/home'),
+          onTap: () => context.go('/home/${projects[index].id}'),
         );
       },
     );

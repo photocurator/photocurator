@@ -114,6 +114,7 @@ class ProjectService {
       final response = await _dio.get('${ProjectService.baseUrl}/projects');
       if (response.statusCode == 200) {
         final List<dynamic> projectJsonList = response.data;
+        print('Successed to get projects: ${response.data}');
         return projectJsonList.map((json) => Project.fromJson(json)).toList();
       } else {
         print('Failed to get projects: ${response.statusCode}');

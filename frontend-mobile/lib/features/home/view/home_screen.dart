@@ -12,16 +12,24 @@ import './setting_screen.dart';
 // 추후 데이터 교체 요망
 // 홈 화면 로드
 class HomeScreen extends StatelessWidget {
+  final String projectId;
+
+  const HomeScreen({
+    super.key,
+    required this.projectId,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final String pjname = "Project name";  //추후에 프로젝트 이름 데이터 넣을 것
+    // TODO: Fetch project details using projectId
+    final String pjname = "Project name"; // Placeholder
 
     return Scaffold(
       backgroundColor: AppColors.wh1,
 
       appBar: HomeAppBar(projectName: pjname),
       body: HomeTabSection(
+// ...
         pages: [
           HighlightScreen(),
           LikeScreen(),
