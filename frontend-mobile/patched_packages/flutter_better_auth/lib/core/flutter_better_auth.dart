@@ -57,6 +57,7 @@ class FlutterBetterAuth {
     );
     dioClient.interceptors.add(CookieManager(cookieJar));
     dioClient.interceptors.add(RemoveNullsInterceptor());
+    dioClient.interceptors.add(LogInterceptor(responseBody: true, requestBody: true));
     _initialized = true;
   }
 
