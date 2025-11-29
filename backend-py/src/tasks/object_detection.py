@@ -16,9 +16,9 @@ class ObjectDetectionTask(ImageProcessingTask):
 
     def _load_model(self):
         """Lazily loads the YOLO object detection model."""
-        if self.model is None:
+        if ObjectDetectionTask.model is None:
             # Using yolov10x as yolov12x is not a recognized model.
-            self.model = YOLO("yolov10x.pt")
+            ObjectDetectionTask.model = YOLO("yolov10x.pt")
 
     def run(self, image_id: str):
         """The main execution method for the task.
@@ -47,8 +47,9 @@ class ObjectDetectionTask(ImageProcessingTask):
 
             storage_base_path = os.getenv("STORAGE_BASE_PATH", "/storage")
             full_image_path = os.path.join(storage_base_path, image_path)
-
-            results = self.model(full_image_path)
+            
+            device = 0 if torch.cuda.is_available() else 'cpu'
+            results = self.model(full_image_path, device=device)
 
             for result in results:
                 for box in result.boxes:

@@ -8,6 +8,8 @@ from ..db import get_db_connection
 from . import register_task
 from .base import ImageProcessingTask
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 @register_task("quality_assessment")
 class QualityAssessmentTask(ImageProcessingTask):
     """A Celery task to assess the quality of an image using the TOPIQ model.
@@ -16,8 +18,8 @@ class QualityAssessmentTask(ImageProcessingTask):
 
     def _load_model(self):
         """Lazily loads the TOPIQ image quality assessment model."""
-        if self.model is None:
-            self.model = pyiqa.create_metric('topiq', device=torch.device('cpu'))
+        if QualityAssessmentTask.model is None:
+            QualityAssessmentTask.model = pyiqa.create_metric('topiq_nr', device=device)
 
     def run(self, image_id: str):
         """The main execution method for the task.
@@ -43,7 +45,7 @@ class QualityAssessmentTask(ImageProcessingTask):
 
             image_path = image_path_tuple[0]
 
-            storage_base_path = os.getenv("STORAGE_BASE_PATH", "/storage")
+            storage_base_path = os.getenv("STORAGE_BASE_PATH", "/home/p4b/Documents/photocurator/backend")
             full_image_path = os.path.join(storage_base_path, image_path)
 
             score = self.model(full_image_path).item()

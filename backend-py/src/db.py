@@ -11,10 +11,5 @@ def get_db_connection():
     Returns:
         psycopg2.extensions.connection: A connection object to the database.
     """
-    conn = psycopg2.connect(
-        host=os.getenv("DB_HOST"),
-        database=os.getenv("DB_NAME"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-    )
+    conn = psycopg2.connect(os.getenv("DB_DSN"))
     return conn

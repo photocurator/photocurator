@@ -13,6 +13,7 @@ app = Celery(
     broker=broker_url,
     backend=backend_url
 )
+app.conf.worker_pool = 'solo'
 
 def get_db_conn_and_cursor():
     """Gets a database connection and cursor.

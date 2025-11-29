@@ -6,6 +6,7 @@ import uuid
 from ..db import get_db_connection
 from . import register_task
 from .base import ImageProcessingTask
+import torch
 
 @register_task("image_captioning")
 class ImageCaptioningTask(ImageProcessingTask):
@@ -16,13 +17,14 @@ class ImageCaptioningTask(ImageProcessingTask):
 
     def _load_model(self):
         """Lazily loads the pre-trained image captioning model and processor."""
-        if self.model is None:
-            self.model = AutoModelForCausalLM.from_pretrained("microsoft/Florence-2-base-ft", trust_remote_code=True)
-            self.processor = AutoProcessor.from_pretrained("microsoft/Florence-2-base-ft", trust_remote_code=True)
+        if ImageCaptioningTask.model is None:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            ImageCaptioningTask.model = AutoModelForCausalLM.from_pretrained("microsoft/Florence-2-base-ft", trust_remote_code=True).to(device)
+            ImageCaptioningTask.processor = AutoProcessor.from_pretrained("microsoft/Florence-2-base-ft", trust_remote_code=True)
 
     def run(self, image_id: str):
         """The main execution method for the task.
-
+        
         This method retrieves the image path from the database, generates a caption using the model,
         and then stores the caption back into the database.
 
@@ -48,9 +50,10 @@ class ImageCaptioningTask(ImageProcessingTask):
             full_image_path = os.path.join(storage_base_path, image_path)
 
             image = Image.open(full_image_path)
-
+            
+            device = "cuda" if torch.cuda.is_available() else "cpu"
             prompt = "<MORE_DETAILED_CAPTION>"
-            inputs = self.processor(text=prompt, images=image, return_tensors="pt")
+            inputs = self.processor(text=prompt, images=image, return_tensors="pt").to(device)
 
             generated_ids = self.model.generate(
                 input_ids=inputs["input_ids"],

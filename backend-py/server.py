@@ -15,11 +15,36 @@ class TaskRequest(BaseModel):
     project_id: str
     user_id: str
 
+class AnalyzeRequestItem(BaseModel):
+    image_id: str
+    task_name: str
+    job_item_id: str
+
+class BatchAnalyzeRequest(BaseModel):
+    requests: list[AnalyzeRequestItem]
+
 class TaskStatus(BaseModel):
     """Response model for the status of a Celery task."""
     task_id: str
     status: str
     result: dict | None = None
+
+@app.post("/batch-analyze")
+def batch_analyze(batch_request: BatchAnalyzeRequest):
+    """Enqueues a batch of image processing tasks.
+
+    This endpoint receives a list of tasks (already recorded in the DB by the main backend)
+    and enqueues them to the Celery worker.
+
+    Args:
+        batch_request (BatchAnalyzeRequest): The request body containing the list of tasks.
+
+    Returns:
+        dict: A message indicating the number of tasks enqueued.
+    """
+    for item in batch_request.requests:
+        process_image.delay(item.task_name, item.image_id, item.job_item_id)
+    return {"message": "Batch analysis started", "count": len(batch_request.requests)}
 
 @app.post("/tasks/", response_model=TaskStatus)
 def enqueue_task(task_request: TaskRequest):
