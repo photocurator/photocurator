@@ -39,6 +39,8 @@ class Project {
       archivedAt: json['archivedAt'] != null ? DateTime.parse(json['archivedAt']) : null,
     );
   }
+
+  String? get coverImageUrl => coverImageId;
 }
 
 class ProjectService {

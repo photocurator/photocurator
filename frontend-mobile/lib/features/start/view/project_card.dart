@@ -26,8 +26,29 @@ class ProjectCard extends StatelessWidget {
         ),
         child: Stack(
           children: [
-            // Background Image would go here.
-            // Using a simple colored container for now as per design placeholder.
+            // Background Image
+            if (project.coverImageUrl != null && project.coverImageUrl!.isNotEmpty)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  project.coverImageUrl!,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                  errorBuilder: (context, error, stackTrace) {
+                    debugPrint('Error loading image for ${project.projectName}: $error');
+                    return Container(
+                      color: AppColors.lgE9ECEF, // Fallback color
+                      alignment: Alignment.center,
+                      child: const Icon(Icons.broken_image, color: AppColors.lgADB5BD),
+                    );
+                  },
+                ),
+              )
+            else
+              Container(
+                color: AppColors.lgE9ECEF, // Placeholder color from design
+              ),
             
             // Content Overlay
             Padding(
