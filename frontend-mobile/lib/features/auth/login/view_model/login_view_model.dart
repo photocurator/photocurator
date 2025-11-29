@@ -12,14 +12,12 @@ class LoginViewModel extends ChangeNotifier {
 
   // --- Actions ---
 
-  /// 비밀번호 보이기/숨기기 토글
   void togglePasswordVisibility() {
     _obscurePassword = !_obscurePassword;
     notifyListeners();
   }
 
   /// 로그인 로직
-  /// 성공 시 null 반환, 실패 시 에러 메시지(String) 반환
   Future<String?> login({
     required String email,
     required String password,
@@ -28,26 +26,19 @@ class LoginViewModel extends ChangeNotifier {
 
     try {
       final client = FlutterBetterAuth.client;
-      final result = await client.signIn.email(
+
+      // [수정] .when() 제거
+      // 이 함수는 성공하면 User 객체를 반환하고, 실패하면 Exception을 던집니다.
+      await client.signIn.email(
         email: email,
         password: password,
       );
 
-      String? errorMessage;
-
-      // BetterAuth 결과 처리
-      (result as dynamic).when(
-        ok: (_) {
-          errorMessage = null; // 성공
-        },
-        err: (error) {
-          errorMessage = '로그인 실패: ${error.message}';
-        },
-      );
-
-      return errorMessage;
+      // 여기까지 코드가 도달했다면 '성공'입니다.
+      return null;
 
     } catch (e) {
+      // 실패 시 여기서 잡힙니다.
       return '로그인 실패: $e';
     } finally {
       _setLoading(false);

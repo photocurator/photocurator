@@ -111,6 +111,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - .env
     - assets/
     - assets/icons/navigator/
     - assets/icons/button/
