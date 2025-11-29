@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:dio/dio.dart';
+import 'package:photocurator/features/home/detail_view/photo_screen.dart';
 import 'package:photocurator/common/theme/colors.dart';
 
 class ImageItem {
@@ -71,7 +72,16 @@ class ImageItemWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: isSelecting ? onSelectToggle : null,
+      onTap: isSelecting
+          ? onSelectToggle
+          : () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PhotoScreen(imageId: item.id),
+          ),
+        );
+      },
       onLongPress: onLongPress,
       child: SizedBox(
         width: size,

@@ -12,8 +12,8 @@ import 'package:photocurator/features/auth/join/view_model/join_view_model.dart'
 
 
 final AppRouter = GoRouter(
-  initialLocation: '/onboarding',
-  //initialLocation: '/home',
+  //initialLocation: '/onboarding',
+  initialLocation: '/home',
   routes: [
     GoRoute(
       path: '/onboarding',
