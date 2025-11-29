@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:photocurator/common/theme/colors.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class EmptyProjectView extends StatelessWidget {
   final VoidCallback onCreateTap;
@@ -18,8 +19,8 @@ class EmptyProjectView extends StatelessWidget {
         child: Text(
           '검색 결과가 없습니다.',
           style: TextStyle(
-            fontFamily: 'NotoSansRegular',
-            fontSize: 14,
+            fontFamily: 'NotoSansMedium',
+            fontSize: 16,
             color: AppColors.lgADB5BD,
           ),
         ),
@@ -32,18 +33,22 @@ class EmptyProjectView extends StatelessWidget {
         Container(
           width: 100,
           height: 100,
-          decoration: BoxDecoration(
-            color: AppColors.lgE9ECEF.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(16),
+          child: SvgPicture.asset(
+            'assets/icons/button/no_project_img.svg', // Using 'back.svg' rotated as per design analysis or find a 'next' icon
+            width: 140,
+            height: 140,
+            colorFilter: const ColorFilter.mode(
+              AppColors.lgE9ECEF,
+              BlendMode.srcIn,
+            ),
           ),
-          child: const Icon(Icons.folder_open, size: 48, color: AppColors.lgADB5BD),
         ),
         const SizedBox(height: 24),
         const Text(
           '생성된 프로젝트가 없습니다',
           style: TextStyle(
             fontFamily: 'NotoSansMedium',
-            fontSize: 15,
+            fontSize: 16,
             color: AppColors.dg495057,
           ),
         ),
@@ -53,11 +58,11 @@ class EmptyProjectView extends StatelessWidget {
           child: const Text(
             '생성하기',
             style: TextStyle(
-              fontFamily: 'NotoSansMedium',
+              fontFamily: 'NotoSansRegular',
               fontSize: 13,
-              color: AppColors.primary,
+              color: AppColors.lg6C757D,
               decoration: TextDecoration.underline,
-              decorationColor: AppColors.primary,
+              decorationColor: AppColors.lg6C757D,
             ),
           ),
         ),
