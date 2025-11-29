@@ -293,9 +293,10 @@ class _StartScreenState extends State<StartScreen> {
           controller: _projectNameController,
           onCancel: () => Navigator.of(dialogContext).pop(),
           onConfirm: () {
-            // ViewModel의 프로젝트 생성 로직 호출
-            viewModel.createProject(_projectNameController.text);
+            // First, pop the dialog
             Navigator.of(dialogContext).pop();
+            // Then, navigate to the photo selection screen
+            context.go('/project/add-photos');
           },
         );
       },

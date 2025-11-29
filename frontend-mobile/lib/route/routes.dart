@@ -8,12 +8,20 @@ import 'package:photocurator/features/home/view/home_screen.dart';
 import 'package:photocurator/features/mypage/view/mypage_screen.dart';
 import 'package:photocurator/features/onboarding/view/onboarding_second_screen.dart';
 import 'package:photocurator/features/search/view/search_screen.dart';
+import 'package:photocurator/features/start/view/photo_selection_screen.dart';
 import 'package:photocurator/features/auth/join/view_model/join_view_model.dart';
 
 
 final AppRouter = GoRouter(
   initialLocation: '/onboarding',
   routes: [
+    GoRoute(
+      path: '/project/add-photos',
+      pageBuilder: (context, state) => MaterialPage(
+        key: state.pageKey,
+        child: const PhotoSelectionScreen(),
+      ),
+    ),
     GoRoute(
       path: '/onboarding',
       pageBuilder: (context, state) => MaterialPage(
