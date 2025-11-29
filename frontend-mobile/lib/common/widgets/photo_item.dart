@@ -1,22 +1,17 @@
 // photo_item.dart
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:dio/dio.dart';
 import 'package:photocurator/common/theme/colors.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
-
-// -----------------------------
-// ImageItem 모델
-// -----------------------------
 class ImageItem {
   final String id;
   final String thumbnailUrl;
-  final bool isRejected; // 숨긴 사진 필터
-
-  // 추가 필드
-  final double? score; // AI 추천 점수
-  final DateTime? captureDatetime; // EXIF 촬영 날짜
-  final DateTime createdAt; // DB에 올라온 날짜
+  final bool isRejected;
+  final double? score;
+  final DateTime? captureDatetime;
+  final DateTime createdAt;
 
   ImageItem({
     required this.id,
@@ -38,27 +33,30 @@ class ImageItem {
     }
 
     return ImageItem(
-      id: json['imageId'],
-      thumbnailUrl: json['urls']['thumbnail'],
+      id: json['imageId'] ?? '',
+      thumbnailUrl: json['urls']?['thumbnail'] ?? '',
       isRejected: json['userFeedback']?['isRejected'] ?? false,
       score: json['analysis']?['qualityScore']?['musiqScore']?.toDouble(),
       captureDatetime: parseDate(json['exif']?['captureDatetime']),
       createdAt: parseDate(json['createdAt']) ?? DateTime.now(),
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is ImageItem && other.id == id;
+
+  @override
+  int get hashCode => id.hashCode;
 }
 
-
-// -----------------------------
-// ImageItemWidget
-// -----------------------------
 class ImageItemWidget extends StatelessWidget {
   final ImageItem item;
   final bool isSelecting;
   final bool isSelected;
   final VoidCallback? onSelectToggle;
   final VoidCallback? onLongPress;
-  final double size; // 이미지 정사각형 크기
+  final double size;
 
   const ImageItemWidget({
     super.key,
@@ -80,23 +78,19 @@ class ImageItemWidget extends StatelessWidget {
         height: size,
         child: Stack(
           children: [
-            Image.network(
-              item.thumbnailUrl,
+            CachedNetworkImage(
+              imageUrl: item.thumbnailUrl,
               width: size,
               height: size,
               fit: BoxFit.cover,
-              loadingBuilder: (context, child, progress) {
-                if (progress == null) return child;
-                return const Center(child: CircularProgressIndicator());
-              },
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  width: size,
-                  height: size,
-                  color: Colors.grey[300],
-                  child: const Icon(Icons.broken_image),
-                );
-              },
+              placeholder: (context, url) =>
+              const Center(child: CircularProgressIndicator()),
+              errorWidget: (context, url, error) => Container(
+                width: size,
+                height: size,
+                color: Colors.grey[300],
+                child: const Icon(Icons.broken_image),
+              ),
             ),
             if (isSelecting)
               Positioned(
@@ -121,11 +115,6 @@ class ImageItemWidget extends StatelessWidget {
   }
 }
 
-
-
-// -----------------------------
-// API 호출 포함
-// -----------------------------
 class ApiService {
   final Dio _dio = Dio(BaseOptions(
     baseUrl: 'https://api.photocurator.com/v1',
@@ -133,27 +122,26 @@ class ApiService {
     receiveTimeout: const Duration(seconds: 5),
   ));
 
-  Future<List<ImageItem>> fetchProjectImages(
-      String projectId, {
-        String? viewType,
-      }) async {
+  Future<List<ImageItem>> fetchProjectImages({
+    required String projectId,
+    String? viewType,
+    String? sortType,
+    String? groupBy,
+  }) async {
     final res = await _dio.get(
       '/projects/$projectId/images',
       queryParameters: {
         if (viewType != null) 'viewType': viewType,
+        if (sortType != null) 'sort': sortType,
+        if (groupBy != null) 'groupBy': groupBy,
       },
     );
 
     final data = res.data['data'] as List;
     return data.map((e) => ImageItem.fromJson(e)).toList();
   }
-
-
 }
 
-// -----------------------------
-// PhotoGrid
-// -----------------------------
 class PhotoGrid extends StatelessWidget {
   final List<ImageItem> images;
   final bool isSelecting;
@@ -172,7 +160,7 @@ class PhotoGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final itemSize = (MediaQuery.of(context).size.width - 48) / 3; // 1대1 정사각형
+    final itemSize = (MediaQuery.of(context).size.width - 48) / 3;
 
     return GridView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),

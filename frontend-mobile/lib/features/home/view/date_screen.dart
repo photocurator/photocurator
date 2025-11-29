@@ -1,3 +1,4 @@
+// date_screen.dart
 import 'package:flutter/material.dart';
 import 'package:photocurator/common/bar/view/selection_bar.dart';
 import 'package:photocurator/common/bar/view/selectable_bar.dart';
@@ -19,65 +20,72 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
   @override
   String get viewType => "ALL";
 
-  late List<String> dateLabels;
-  late Map<String, List<ImageItem>> imagesByDate;
-  int selectedIndex = 0;
+  @override
+  String get sortType => "time";
 
   @override
-  void initState() {
-    super.initState();
-    _prepareDateMapping();
+  String? get groupBy => "date";
+
+  int selectedTabIndex = 0;
+  List<String> dateLabels = ["전체"]; // 초기값 추가
+
+  // 이미지 로드 완료 후 라벨 준비
+  void _prepareDateLabels() {
+    final dates = images
+        .map((img) => img.captureDatetime ?? img.createdAt)
+        .map((d) => "${d.month}월 ${d.day}일")
+        .toSet()
+        .toList()
+      ..sort((a, b) {
+        final aParts = a.split(RegExp(r"[월일 ]")).where((e) => e.isNotEmpty).toList();
+        final bParts = b.split(RegExp(r"[월일 ]")).where((e) => e.isNotEmpty).toList();
+        return DateTime(DateTime.now().year, int.parse(aParts[0]), int.parse(aParts[1]))
+            .compareTo(DateTime(DateTime.now().year, int.parse(bParts[0]), int.parse(bParts[1])));
+      });
+    dateLabels.addAll(dates);
   }
 
-  void _prepareDateMapping() {
-    imagesByDate = {"전체": List.from(images)};
+  List<ImageItem> get currentImages {
+    if (selectedTabIndex == 0) return images;
 
-    for (var img in images) {
+    final label = dateLabels[selectedTabIndex];
+    return images.where((img) {
       final date = img.captureDatetime ?? img.createdAt;
-      final label = "${date.month}월 ${date.day}일";
-      imagesByDate.putIfAbsent(label, () => []).add(img);
-    }
-
-    final otherDates = imagesByDate.keys.where((k) => k != "전체").toList()
-      ..sort((a, b) {
-        final aParts =
-        a.split(RegExp(r"[월일 ]")).where((e) => e.isNotEmpty).toList();
-        final bParts =
-        b.split(RegExp(r"[월일 ]")).where((e) => e.isNotEmpty).toList();
-        return DateTime(DateTime.now().year, int.parse(aParts[0]),
-            int.parse(aParts[1]))
-            .compareTo(DateTime(DateTime.now().year, int.parse(bParts[0]),
-            int.parse(bParts[1])));
-      });
-
-    dateLabels = ["전체", ...otherDates];
+      return label == "${date.month}월 ${date.day}일";
+    }).toList();
   }
 
   void _onTabSelected(int index) {
-    setState(() => selectedIndex = index);
+    setState(() => selectedTabIndex = index);
+  }
+
+  @override
+  void didUpdateWidget(covariant DateScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!isLoading && images.isNotEmpty && dateLabels.length <= 1) {
+      _prepareDateLabels();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final deviceWidth = MediaQuery.of(context).size.width;
-    final currentImages = imagesByDate[dateLabels[selectedIndex]] ?? [];
-
-    sortImages(currentImages, sortType);
 
     return Scaffold(
       backgroundColor: AppColors.wh1,
       body: Column(
         children: [
-          // 1. 날짜 선택 바 (항상 보임)
+          // 1. 날짜 선택 바 → 항상 보이게
           SelectableBar(
             items: dateLabels,
-            selectedIndex: selectedIndex,
+            selectedIndex: selectedTabIndex,
             onItemSelected: _onTabSelected,
-            height: deviceWidth * (44/375),
+            height: deviceWidth * (44 / 375),
           ),
-          // 2. 선택 / 정렬 바 (항상 보임)
+
+          // 2. 선택/정렬 바
           SizedBox(
-            height: deviceWidth * (40/375),
+            height: deviceWidth * (40 / 375),
             child: isSelecting
                 ? SelectModeAppBar(
               title: selectedImages.isEmpty
@@ -100,17 +108,19 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
                 : SortingAppBar(
               screenTitle: screenTitle,
               imagesCount: currentImages.length,
-              sortType: sortType,
+              sortType: sortType ?? "time",
               deviceWidth: deviceWidth,
               onSelectMode: () => setState(() => isSelecting = true),
-              onSortRecommend: () => setState(() => sortType = "recommend"),
+              onSortRecommend: () =>
+                  setState(() => sortType = "recommend"),
               onSortTime: () => setState(() => sortType = "time"),
             ),
           ),
-          // 3. 이미지 그리드 / 로딩 표시
+
+          // 3. 이미지 그리드
           Expanded(
             child: isLoading
-                ? SizedBox(height: 1,)
+                ? Container(color: AppColors.wh1) // 로딩 중이면 흰색 화면
                 : currentImages.isEmpty
                 ? const Center(
               child: Text(
@@ -124,12 +134,11 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
               isSelecting: isSelecting,
               selectedImages: selectedImages,
               onSelectToggle: toggleSelection,
-              onLongPressItem: () =>
-                  setState(() => isSelecting = true),
+              onLongPressItem: () => setState(() => isSelecting = true),
             ),
           ),
         ],
       ),
     );
   }
-  }
+}

@@ -1,3 +1,4 @@
+// photo_screen_widget.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../provider/current_project_provider.dart';
@@ -6,19 +7,18 @@ import 'package:photocurator/common/bar/view/detail_app_bar.dart';
 import 'package:photocurator/common/bar/view/selection_bar.dart';
 import 'package:photocurator/common/theme/colors.dart';
 
-
 mixin BaseScreenMixin<T extends StatefulWidget> on State<T> {
   bool isSelecting = false;
   bool isLoading = true;
-  bool _hasLoadedImages = false;
 
   List<ImageItem> images = [];
   List<ImageItem> selectedImages = [];
 
   String? projectId;
 
-  // 각 화면마다 viewType만 다르게 override함
   String get viewType;
+  String? get sortType;
+  String? get groupBy;
 
   void toggleSelection(ImageItem item) {
     setState(() {
@@ -33,34 +33,25 @@ mixin BaseScreenMixin<T extends StatefulWidget> on State<T> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-
     final currentProject = context.watch<CurrentProjectProvider>();
-
-    if (!_hasLoadedImages &&
-        currentProject.projectId != null &&
-        currentProject.projectId != projectId) {
+    if (currentProject.projectId != null && currentProject.projectId != projectId) {
       projectId = currentProject.projectId;
       _loadImages();
-      _hasLoadedImages = true;
     }
   }
 
   Future<void> _loadImages() async {
     if (projectId == null) return;
     setState(() => isLoading = true);
-
-    final api = ApiService();
     try {
-      final fetchedImages = await api.fetchProjectImages(
-        projectId!,
-        viewType: 'ALL',
+      final fetchedImages = await ApiService().fetchProjectImages(
+        projectId: projectId!,
+        viewType: viewType,
+        sortType: sortType,
+        groupBy: groupBy,
       );
-
-      // 숨긴 사진만 필터
-      final hiddenImages = fetchedImages.where((img) => img.isRejected).toList();
-
       setState(() {
-        images = hiddenImages;
+        images = fetchedImages;
         isLoading = false;
       });
     } catch (e) {
@@ -69,20 +60,12 @@ mixin BaseScreenMixin<T extends StatefulWidget> on State<T> {
     }
   }
 
-  void selectAll() {
-    setState(() {
-      selectedImages = List.from(images);
-    });
-  }
-
-  void cancelSelection() {
-    setState(() => isSelecting = false);
-  }
+  void selectAll() => setState(() => selectedImages = List.from(images));
+  void cancelSelection() => setState(() => isSelecting = false);
 }
 
 abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T>
     with BaseScreenMixin<T> {
-
   String get screenTitle;
 
   @override
@@ -97,59 +80,44 @@ abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T>
             ? "전체 선택"
             : "${selectedImages.length}개 선택됨",
         deviceWidth: deviceWidth,
-
-        // 전체 선택 토글
         onSelectAll: () {
           setState(() {
             if (selectedImages.length == images.length) {
-              selectedImages.clear();      // 전체 해제
+              selectedImages.clear();
             } else {
-              selectedImages = List.from(images); // 전체 선택
+              selectedImages = List.from(images);
             }
           });
         },
-
         onCancel: () => setState(() => isSelecting = false),
-
-        // 전체 선택 여부 전달
-        isAllSelected: (selectedImages.length > 0) && (selectedImages.length == images.length),
+        isAllSelected: selectedImages.length == images.length,
       )
           : DetailAppBar(
         title: screenTitle,
         rightWidget: GestureDetector(
-          onTap: () {
-            setState(() => isSelecting = true);
-          },
+          onTap: () => setState(() => isSelecting = true),
           child: Text(
             "선택",
             style: TextStyle(
-              fontSize:
-              deviceWidth * (50 / 375) * (14 / 50),
+              fontSize: deviceWidth * (50 / 375) * (14 / 50),
               color: AppColors.lgADB5BD,
             ),
           ),
         ),
       ),
       body: isLoading
-          ? Container(height: 1, color: AppColors.lgE9ECEF)
-          : Column(
-        children: [
-          Container(height: 1, color: AppColors.lgE9ECEF),
-          Expanded(
-            child: PhotoGrid(
-              images: images,
-              isSelecting: isSelecting,
-              selectedImages: selectedImages,
-              onSelectToggle: toggleSelection,
-            ),
-          ),
-        ],
+          ? const SizedBox(height: 1)
+          : PhotoGrid(
+        images: images,
+        isSelecting: isSelecting,
+        selectedImages: selectedImages,
+        onSelectToggle: toggleSelection,
+        onLongPressItem: () => setState(() => isSelecting = true),
       ),
     );
   }
 }
 
-// 홈 화면에 쓸 거
 abstract class BasePhotoContent<T extends StatefulWidget> extends State<T>
     with BaseScreenMixin<T> {
   String get screenTitle;
@@ -158,7 +126,7 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T>
   @override
   Widget build(BuildContext context) {
     final deviceWidth = MediaQuery.of(context).size.width;
-    sortImages(images, sortType);
+    _sortImages();
 
     return Scaffold(
       backgroundColor: AppColors.wh1,
@@ -190,7 +158,7 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T>
         onSortTime: () => setState(() => sortType = "time"),
       ),
       body: isLoading
-          ? SizedBox(height: 1,)
+          ? const SizedBox(height: 1)
           : PhotoGrid(
         images: images,
         isSelecting: isSelecting,
@@ -201,7 +169,7 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T>
     );
   }
 
-  void sortImages(List<ImageItem> images, String sortType) {
+  void _sortImages() {
     if (sortType == "recommend") {
       images.sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
     } else if (sortType == "time") {
@@ -213,5 +181,3 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T>
     }
   }
 }
-
-

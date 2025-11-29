@@ -20,4 +20,8 @@ class _LikeScreenState extends BasePhotoContent<LikeScreen> {
 
   @override
   String get screenTitle => '좋아요';
+
+  // 그룹핑 필요 없으므로 null 반환
+  @override
+  String? get groupBy => null;
 }
