@@ -1,9 +1,11 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:photocurator/common/theme/colors.dart';
 import 'package:photocurator/features/start/service/project_service.dart';
 
-class ProjectCard extends StatelessWidget {
+class ProjectCard extends StatefulWidget {
   final Project project;
   final bool isRecent;
   final VoidCallback? onTap;
@@ -16,9 +18,26 @@ class ProjectCard extends StatelessWidget {
   });
 
   @override
+  State<ProjectCard> createState() => _ProjectCardState();
+}
+
+class _ProjectCardState extends State<ProjectCard> {
+  late final ProjectService _projectService;
+  Future<Uint8List?>? _imageFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _projectService = ProjectService();
+    if (widget.project.coverImageUrl != null && widget.project.coverImageUrl!.isNotEmpty) {
+      _imageFuture = _projectService.getImage(widget.project.coverImageUrl!);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.lgE9ECEF, // Placeholder color from design
@@ -29,22 +48,34 @@ class ProjectCard extends StatelessWidget {
           child: Stack(
             children: [
               // Background Image
-              if (project.coverImageUrl != null && project.coverImageUrl!.isNotEmpty)
-                Image.network(
-                  project.coverImageUrl!,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                  errorBuilder: (context, error, stackTrace) {
-                    debugPrint('Error loading image for ${project.projectName}: $error');
-                    return Container(
-                      color: AppColors.lgE9ECEF, // Fallback color
-                      alignment: Alignment.center,
-                      child: const Icon(Icons.broken_image, color: AppColors.lgADB5BD),
-                    );
+              if (_imageFuture != null)
+                FutureBuilder<Uint8List?>(
+                  future: _imageFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.done &&
+                        snapshot.hasData &&
+                        snapshot.data != null) {
+                      return Image.memory(
+                        snapshot.data!,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                      );
+                    } else if (snapshot.hasError) {
+                      debugPrint(
+                          'Error loading image for ${widget.project.projectName}: ${snapshot.error}');
+                      return Container(
+                        color: AppColors.lgE9ECEF, // Fallback color
+                        alignment: Alignment.center,
+                        child: const Icon(Icons.broken_image,
+                            color: AppColors.lgADB5BD),
+                      );
+                    } else {
+                      return const Center(child: CircularProgressIndicator());
+                    }
                   },
                 ),
-              
+
               // Content Overlay
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 30, 20, 20),
@@ -54,7 +85,7 @@ class ProjectCard extends StatelessWidget {
                   children: [
                     // Title
                     Text(
-                      project.projectName,
+                      widget.project.projectName,
                       style: const TextStyle(
                         fontFamily: 'NotoSansMedium',
                         fontSize: 16,
@@ -70,10 +101,10 @@ class ProjectCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    
+
                     // Date
                     Text(
-                      "${project.createdAt.year}.${project.createdAt.month.toString().padLeft(2, '0')}.${project.createdAt.day.toString().padLeft(2, '0')}",
+                      "${widget.project.createdAt.year}.${widget.project.createdAt.month.toString().padLeft(2, '0')}.${widget.project.createdAt.day.toString().padLeft(2, '0')}",
                       style: const TextStyle(
                         fontFamily: 'NotoSansRegular',
                         fontSize: 10,
@@ -85,7 +116,7 @@ class ProjectCard extends StatelessWidget {
               ),
 
               // Recent Badge
-              if (isRecent)
+              if (widget.isRecent)
                 Positioned(
                   right: 0,
                   bottom: 0,
@@ -131,4 +162,3 @@ class ProjectCard extends StatelessWidget {
     );
   }
 }
-

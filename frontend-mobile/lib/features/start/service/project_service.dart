@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_better_auth/flutter_better_auth.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -114,7 +116,6 @@ class ProjectService {
       final response = await _dio.get('${ProjectService.baseUrl}/projects');
       if (response.statusCode == 200) {
         final List<dynamic> projectJsonList = response.data;
-        print('Successed to get projects: ${response.data}');
         return projectJsonList.map((json) => Project.fromJson(json)).toList();
       } else {
         print('Failed to get projects: ${response.statusCode}');
@@ -123,6 +124,24 @@ class ProjectService {
     } catch (e) {
       print('Error getting projects: $e');
       return [];
+    }
+  }
+
+  Future<Uint8List?> getImage(String imageUrl) async {
+    try {
+      final response = await _dio.get<Uint8List>(
+        imageUrl,
+        options: Options(responseType: ResponseType.bytes),
+      );
+      if (response.statusCode == 200) {
+        return response.data;
+      } else {
+        print('Failed to get image: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('Error getting image: $e');
+      return null;
     }
   }
 }
