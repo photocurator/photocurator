@@ -4,7 +4,6 @@ import 'package:photocurator/common/navigator/view/bottom_navigation_bar.dart';
 import 'package:photocurator/features/auth/join/view/join_screen.dart';
 import 'package:photocurator/features/auth/login/view/login_screen.dart';
 import 'package:photocurator/features/start/view/start_screen.dart';
-import 'package:photocurator/features/home/view/home_screen.dart';
 import 'package:photocurator/features/mypage/view/mypage_screen.dart';
 import 'package:photocurator/features/onboarding/view/onboarding_second_screen.dart';
 import 'package:photocurator/features/search/view/search_screen.dart';
@@ -40,13 +39,6 @@ final AppRouter = GoRouter(
       ),
     ),
     GoRoute(
-      path: '/start',
-      pageBuilder: (context, state) => MaterialPage(
-        key: state.pageKey,
-        child: const StartScreen(),
-      ),
-    ),
-    GoRoute(
       path: '/join',
       pageBuilder: (context, state) => MaterialPage(
         key: state.pageKey,
@@ -76,10 +68,10 @@ final AppRouter = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/home',
+              path: '/start',
               pageBuilder: (context, state) => MaterialPage(
                 key: state.pageKey,
-                child: HomeScreen(),
+                child: StartScreen(),
               ),
             ),
           ],
