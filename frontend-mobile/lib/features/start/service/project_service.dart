@@ -5,6 +5,7 @@ class Project {
   final String id;
   final String userId;
   final String projectName;
+  final String? description; // Added description
   final String? coverImageId;
   final bool isArchived;
   final DateTime createdAt;
@@ -15,6 +16,7 @@ class Project {
     required this.id,
     required this.userId,
     required this.projectName,
+    this.description, // Added description
     this.coverImageId,
     required this.isArchived,
     required this.createdAt,
@@ -27,6 +29,7 @@ class Project {
       id: json['id'],
       userId: json['userId'],
       projectName: json['projectName'],
+      description: json['description'], // Added description
       coverImageId: json['coverImageId'],
       isArchived: json['isArchived'],
       createdAt: DateTime.parse(json['createdAt']),
@@ -91,6 +94,22 @@ class ProjectService {
     } catch (e) {
       print('Error uploading images: $e');
       return null;
+    }
+  }
+
+  Future<List<Project>> getProjects() async {
+    try {
+      final response = await _dio.get('/projects');
+      if (response.statusCode == 200) {
+        final List<dynamic> projectJsonList = response.data;
+        return projectJsonList.map((json) => Project.fromJson(json)).toList();
+      } else {
+        print('Failed to get projects: ${response.statusCode}');
+        return [];
+      }
+    } catch (e) {
+      print('Error getting projects: $e');
+      return [];
     }
   }
 }
