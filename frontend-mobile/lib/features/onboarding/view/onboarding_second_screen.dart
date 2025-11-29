@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:photocurator/common/theme/colors.dart';
 
@@ -14,7 +13,7 @@ class OnboardingSecondScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: 48),
+            const SizedBox(height: 100),
             const _LogoBadge(),
             const SizedBox(height: 40),
             Padding(
@@ -128,7 +127,7 @@ class OnboardingSecondScreen extends StatelessWidget {
                       child: const Text('로그인하기'),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  SizedBox(height: 152),
                 ],
               ),
             ),
@@ -142,15 +141,19 @@ class OnboardingSecondScreen extends StatelessWidget {
 class _LogoBadge extends StatelessWidget {
   const _LogoBadge();
 
+
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final navWidth = screenWidth / 375;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 30),
       child: Align(
         alignment: Alignment.centerLeft,
         child: Container(
-          width: 100,
-          height: 100,
+          width: navWidth * 80,
+          height: navWidth * 80,
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
             color: AppColors.wh1,
@@ -164,17 +167,18 @@ class _LogoBadge extends StatelessWidget {
           ),
           alignment: Alignment.center,
           child: Container(
-            width: 80,
-            height: 80,
+            width: navWidth*80,
+            height: navWidth*80,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
               color: AppColors.wh1,
             ),
             child: Center(
-              child: SvgPicture.asset(
-                'assets/icons/button/logo.svg',
-                width: 36,
-                height: 36,
+              child: Image.asset(
+                'assets/icons/navigator/logo.png',
+                width: navWidth * 35.2,
+                height: navWidth * 35.2,
+                fit: BoxFit.contain,
               ),
             ),
           ),
