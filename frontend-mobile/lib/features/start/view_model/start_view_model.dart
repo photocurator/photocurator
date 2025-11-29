@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:photocurator/features/start/view_model/project_model.dart';
 import 'package:photocurator/features/start/service/project_service.dart';
 
 enum SortType {
@@ -81,10 +82,9 @@ class StartViewModel extends ChangeNotifier {
 
   /// 프로젝트 생성 (API 연동 시 구현)
   Future<void> createProject(String name) async {
-    final createdProject = await _projectService.createProject(name);
-    if (createdProject != null) {
-      await fetchProjects(); // 생성 후 목록 갱신
-    }
+    // TODO: _projectService.createProject(name);
+    // await fetchProjects(); // 생성 후 목록 갱신
+    debugPrint('Creating project: $name');
   }
 
   // --- Private Helpers ---
@@ -95,14 +95,15 @@ class StartViewModel extends ChangeNotifier {
     List<Project> temp = _searchQuery.isEmpty
         ? List.from(_allProjects)
         : _allProjects
-        .where((p) => p.projectName.toLowerCase().contains(_searchQuery.toLowerCase()))
+        .where((p) => p.name.toLowerCase().contains(_searchQuery.toLowerCase()))
         .toList();
 
     // 2. 정렬 적용
     if (_currentSort == SortType.name) {
-      temp.sort((a, b) => a.projectName.compareTo(b.projectName));
+      temp.sort((a, b) => a.name.compareTo(b.name));
     } else {
-      temp.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      // 시간순 정렬 (모델에 날짜가 없다면 기본 순서 혹은 반대 순서)
+      // temp.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     }
 
     _displayProjects = temp;
