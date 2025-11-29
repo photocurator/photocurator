@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:photocurator/common/theme/colors.dart';
-import 'package:photocurator/features/start/model/project_model.dart';
+import 'package:photocurator/features/start/view_model/project_model.dart';
 
 class ProjectCard extends StatelessWidget {
   final Project project;

@@ -1,4 +1,4 @@
-import 'package:photocurator/features/start/model/project_model.dart';
+import 'package:photocurator/features/start/view_model/project_model.dart';
 
 class ProjectService {
   // Mock data to simulate API response
