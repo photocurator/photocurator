@@ -176,7 +176,21 @@ class _PhotoSelectionScreenState extends State<PhotoSelectionScreen> {
                     context.go('/home');
                   }
                 },
-...
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  textStyle: const TextStyle(
+                    fontFamily: 'NotoSansMedium',
+                    fontSize: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text('건너뛰기'),
+              )
+            : ElevatedButton(
                 onPressed: () async {
                   List<String> photoPaths = [];
                   for (var asset in _selectedAssets) {

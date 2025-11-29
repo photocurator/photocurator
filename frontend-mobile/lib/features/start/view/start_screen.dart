@@ -8,6 +8,7 @@ import 'package:photocurator/features/start/view/project_list_item.dart';
 import 'package:photocurator/features/start/view_model/start_view_model.dart';
 
 // 분리한 위젯들 import
+import '../service/project_service.dart';
 import 'widgets/new_project_card.dart';
 import 'widgets/search_button.dart';
 import 'widgets/empty_project_view.dart';
