@@ -4,6 +4,7 @@ import 'package:photocurator/common/theme/colors.dart';
 import 'package:provider/provider.dart';
 import 'common/navigator/view_model/bottom_navigation_bar_view_model.dart';
 import 'package:photocurator/route/routes.dart';
+import 'package:photocurator/provider/current_project_provider.dart';
 
 void main() {
   // 앱 실행 전에 상태 표시줄 스타일을 강제로 설정
@@ -14,6 +15,7 @@ void main() {
   ));
   runApp(MultiProvider(
     providers: [
+      ChangeNotifierProvider(create: (_) => CurrentProjectProvider()),
       ChangeNotifierProvider.value(
           value: BottomNavigationViewModel(AppRouter)),
     ],

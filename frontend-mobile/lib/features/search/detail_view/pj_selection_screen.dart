@@ -15,20 +15,7 @@ class TrashScreen extends StatelessWidget {
 
       appBar: DetailAppBar(
         title: "프로젝트 선택",
-        rightWidget: GestureDetector(
-            onTap: () {
-              print("우측 버튼 클릭");
-            },
-            child: Container(
-              width: deviceWidth * (50 / 375) * (20 / 50) * (1 / 6),
-              height: deviceWidth * (50 / 375) * (20 / 50),
-              alignment: Alignment.center,
-              child: MoreIcon(
-                totalHeight: deviceWidth * (50 / 375) * (20 / 50),
-                dotDiameter: deviceWidth * (50 / 375) * (20 / 50) * (1 / 6),
-              ),
-            )
-        ),
+        rightWidget: null,
       ),
       //body:
     );

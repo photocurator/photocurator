@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:photocurator/common/theme/colors.dart';
 import 'package:photocurator/common/widgets/back_icon.dart';
+import 'package:photocurator/common/widgets/more_dropdown.dart';
+import 'package:photocurator/common/widgets/view_more_icon.dart';
 
 //상세 페이지(하위 페이지) 상단 바 ui
 class DetailAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -86,6 +88,61 @@ class DetailAppBar extends StatelessWidget implements PreferredSizeWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+
+// 홈 상단 바
+// 뒤로가기 있는 버전
+class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
+  final String projectName;
+  final List<DropdownItem> menuItems;
+
+  const HomeAppBar({super.key, required this.projectName, required this.menuItems});
+
+  @override
+  Size get preferredSize => const Size.fromHeight(50);
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final barHeight = screenWidth * (50 / 375);
+
+    return DetailAppBar(
+      title: projectName,
+      rightWidget: Builder(
+        builder: (buttonContext) => Container(
+          width: barHeight,
+          alignment: Alignment.centerRight,
+          child: IconButton(
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            onPressed: () {
+              final renderBox = buttonContext.findRenderObject() as RenderBox;
+              showMoreDropdown(
+                context: context,
+                buttonRenderBox: renderBox,
+                items: menuItems,
+              );
+            },
+            icon: Row(
+              children: [
+                Spacer(),
+                Container(
+                  width: barHeight * (20 / 50) * (1 / 6),
+                  height: barHeight * (20 / 50),
+                  alignment: Alignment.center,
+                  child: MoreIcon(
+                    totalHeight: barHeight * (20 / 50),
+                    dotDiameter: barHeight * (20 / 50) * (1 / 6),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

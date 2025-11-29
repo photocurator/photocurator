@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:photocurator/common/theme/colors.dart';
 import 'package:photocurator/common/widgets/more_dropdown.dart';
 import 'package:photocurator/common/widgets/view_more_icon.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 //상단 바의 베이직 ui
 class BaseAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -51,6 +52,7 @@ class BaseAppBar extends StatelessWidget implements PreferredSizeWidget {
 
 
 // 홈 상단 바
+// 이거 안 씀
 class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String projectName;
   final List<DropdownItem> menuItems;

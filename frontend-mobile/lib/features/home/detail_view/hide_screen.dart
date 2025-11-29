@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:photocurator/common/theme/colors.dart';
 import 'package:photocurator/common/bar/view/detail_app_bar.dart';
+import 'package:photocurator/common/widgets/photo_item.dart';
+import 'package:photocurator/common/widgets/photo_screen_widget.dart';
 
+/*
 //숨긴 사진 상세 화면
-class TrashScreen extends StatelessWidget {
+class HideScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
@@ -38,5 +41,47 @@ class TrashScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+*/
+
+
+class HideScreen extends StatefulWidget {
+  @override
+  State<HideScreen> createState() => _HiddenScreenState();
+}
+
+class _HiddenScreenState extends BasePhotoScreen<HideScreen> {
+  @override
+  String get viewType => 'ALL'; // API 호출은 전체를 가져오고 아래에서 필터링
+
+  @override
+  String get screenTitle => '숨긴 사진';
+
+  @override
+  Future<void> _loadImages() async {
+    if (projectId == null) return;
+
+    setState(() => isLoading = true);
+
+    final api = ApiService();
+    try {
+      final fetchedImages = await api.fetchProjectImages(
+        projectId!,
+        viewType: viewType,
+      );
+
+      // 숨긴 사진만 필터링
+      final hiddenImages =
+      fetchedImages.where((img) => img.isRejected == true).toList();
+
+      setState(() {
+        images = hiddenImages;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() => isLoading = false);
+      print("이미지 불러오기 실패: $e");
+    }
   }
 }

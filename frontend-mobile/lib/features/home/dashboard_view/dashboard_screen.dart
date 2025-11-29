@@ -11,11 +11,20 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    //변수 정의
+    final deviceWidth = MediaQuery.of(context).size.width;
+    final barHeight = deviceWidth * (50/375);
 
     return Scaffold(
       backgroundColor: AppColors.wh1,
-      //appBar: ,
+
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(barHeight),
+        child: SafeArea(
+          child: Container(
+            height: barHeight,
+          ),
+        ),
+      ),
       //body: ,
     );
   }

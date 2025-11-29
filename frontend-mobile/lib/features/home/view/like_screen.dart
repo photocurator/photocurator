@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:photocurator/common/theme/colors.dart';
 import 'package:photocurator/common/bar/view/app_bar.dart';
+import 'package:flutter/material.dart';
+import 'package:photocurator/common/theme/colors.dart';
+import 'package:photocurator/common/bar/view/detail_app_bar.dart';
+import 'package:photocurator/common/widgets/photo_item.dart';
+import 'package:photocurator/common/widgets/photo_screen_widget.dart';
 
-class LikeScreen extends StatelessWidget {
+class LikeScreen extends StatefulWidget {
   const LikeScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.wh1, // 배경색 지정
-      child: Center(
-        child: Text(
-          '좋아요 화면',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
-  }
+  _LikeScreenState createState() => _LikeScreenState();
+}
+
+class _LikeScreenState extends BasePhotoContent<LikeScreen> {
+  @override
+  String get viewType => 'PICKED';
+
+  @override
+  String get screenTitle => '좋아요';
 }

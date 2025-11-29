@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:photocurator/common/bar/view/app_bar.dart';
+//import 'package:photocurator/common/bar/view/app_bar.dart';
+import 'package:photocurator/common/bar/view/detail_app_bar.dart';
 import 'package:photocurator/common/theme/colors.dart';
 import 'package:photocurator/common/bar/view_model/home_tab_section.dart';
 import 'package:photocurator/common/widgets/more_dropdown.dart';
@@ -64,28 +65,27 @@ class HomeScreen extends StatelessWidget {
               );
             },
           ),
-          DropdownItem(
-              text: "대시보드",
-              color: AppColors.primary,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => DashboardScreen()),
-              );
-            },
-          ),
         ],
       ),
-      body: HomeTabSection(
-        pages: [
-          HighlightScreen(),
-          LikeScreen(),
-          DateScreen(),
-          GradeScreen(),
-          SubjectScreen(),
-          SettingScreen(),
-        ],
-      ),
+        body: Column(
+          children: [
+            Container(height: 1),
+
+            Expanded(
+              child: HomeTabSection(
+                pages: [
+                  HighlightScreen(),
+                  LikeScreen(),
+                  DateScreen(),
+                  GradeScreen(),
+                  SubjectScreen(),
+                  SettingScreen(),
+                ],
+              ),
+            ),
+          ],
+        )
+
     );
   }
 }
