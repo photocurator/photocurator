@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from celery.result import AsyncResult
 from worker import process_image
-from src.db import get_db_connection
+from src.db import get_db_connection, release_db_connection
 import uuid
 
 app = FastAPI()
@@ -91,7 +91,7 @@ def enqueue_task(task_request: TaskRequest):
         if cur:
             cur.close()
         if conn:
-            conn.close()
+            release_db_connection(conn)
 
 @app.get("/tasks/{task_id}", response_model=TaskStatus)
 def get_task_status(task_id: str):

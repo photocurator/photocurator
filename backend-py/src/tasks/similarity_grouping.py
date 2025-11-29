@@ -4,7 +4,7 @@ import uuid
 from datetime import timedelta
 from PIL import Image
 import imagehash
-from ..db import get_db_connection
+from ..db import get_db_connection, release_db_connection
 from . import register_task
 from .base import ImageProcessingTask
 
@@ -158,5 +158,5 @@ class SimilarityGroupingTask(ImageProcessingTask):
             if cur:
                 cur.close()
             if conn:
-                conn.close()
+                release_db_connection(conn)
 

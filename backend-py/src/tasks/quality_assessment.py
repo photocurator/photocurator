@@ -4,7 +4,7 @@ import torch
 from PIL import Image
 import os
 import uuid
-from ..db import get_db_connection
+from ..db import get_db_connection, release_db_connection
 from . import register_task, unload_other_models
 from .base import ImageProcessingTask
 
@@ -113,4 +113,4 @@ class QualityAssessmentTask(ImageProcessingTask):
             if cur:
                 cur.close()
             if conn:
-                conn.close()
+                release_db_connection(conn)

@@ -1,7 +1,7 @@
 """This module defines the Celery worker and the main task for processing images."""
 from celery import Celery, states
 from src.tasks import TASK_REGISTRY
-from src.db import get_db_connection
+from src.db import get_db_connection, release_db_connection
 import os
 import importlib
 
@@ -34,7 +34,7 @@ def close_db_conn_and_cursor(conn, cursor):
     if cursor:
         cursor.close()
     if conn:
-        conn.close()
+        release_db_connection(conn)
 
 def register_tasks():
     """Dynamically imports all tasks from the `src/tasks` directory to ensure they are registered in the TASK_REGISTRY."""

@@ -3,7 +3,8 @@ from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
 import os
 import uuid
-from ..db import get_db_connection
+from datetime import datetime
+from ..db import get_db_connection, release_db_connection
 from . import register_task
 from .base import ImageProcessingTask
 
@@ -58,6 +59,24 @@ class ExifAnalysisTask(ImageProcessingTask):
             dd *= -1
         return dd
 
+    def _parse_exif_date(self, date_str):
+        """Parses EXIF date string to datetime object.
+        
+        Args:
+            date_str (str): Date string in format 'YYYY:MM:DD HH:MM:SS'
+            
+        Returns:
+            datetime: Parsed datetime object or None if parsing fails
+        """
+        if not date_str:
+            return None
+        try:
+            # Handle cases where the string might have null bytes or other garbage
+            date_str = date_str.strip().replace('\x00', '')
+            return datetime.strptime(date_str, '%Y:%m:%d %H:%M:%S')
+        except (ValueError, TypeError):
+            return None
+
     def run(self, image_id: str):
         """The main execution method for the task.
 
@@ -85,6 +104,21 @@ class ExifAnalysisTask(ImageProcessingTask):
             exif_data, gps_info = self._get_exif_data(full_image_path)
 
             if exif_data:
+                # Extract capture time
+                capture_time = None
+                # Try different tags for date time
+                for tag in ['DateTimeOriginal', 'DateTimeDigitized', 'DateTime']:
+                    if tag in exif_data:
+                        capture_time = self._parse_exif_date(exif_data[tag])
+                        if capture_time:
+                            break
+                
+                if capture_time:
+                    cur.execute(
+                        "UPDATE image SET capture_datetime = %s WHERE id = %s",
+                        (capture_time, image_id)
+                    )
+
                 # Using INSERT ... ON CONFLICT to handle existing records
                 cur.execute("""
                     INSERT INTO image_exif (id, image_id, camera_make, camera_model, lens_model, focal_length_mm, aperture_f, shutter_speed, iso, created_at)
@@ -123,4 +157,4 @@ class ExifAnalysisTask(ImageProcessingTask):
             if cur:
                 cur.close()
             if conn:
-                conn.close()
+                release_db_connection(conn)
