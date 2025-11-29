@@ -5,10 +5,8 @@ from PIL import Image
 import os
 import uuid
 from ..db import get_db_connection
-from . import register_task
+from . import register_task, unload_other_models
 from .base import ImageProcessingTask
-
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 @register_task("quality_assessment")
 class QualityAssessmentTask(ImageProcessingTask):
@@ -18,8 +16,13 @@ class QualityAssessmentTask(ImageProcessingTask):
 
     def _load_model(self):
         """Lazily loads the TOPIQ image quality assessment model."""
+        unload_other_models(QualityAssessmentTask)
+        use_gpu = os.getenv("USE_GPU", "true").lower() == "true"
+        device = torch.device('cuda' if use_gpu and torch.cuda.is_available() else 'cpu')
         if QualityAssessmentTask.model is None:
             QualityAssessmentTask.model = pyiqa.create_metric('topiq_nr', device=device)
+        else:
+            QualityAssessmentTask.model.to(device)
 
     def run(self, image_id: str):
         """The main execution method for the task.

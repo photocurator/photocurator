@@ -26,6 +26,7 @@ export const image = pgTable("image", {
   mimeType: text("mime_type").notNull(),
   widthPx: integer("width_px"),
   heightPx: integer("height_px"),
+  perceptualHash: text("perceptual_hash"),
   compareViewSelected: boolean("compare_view_selected").default(false).notNull(),
   captureDatetime: timestamp("capture_datetime"),
   uploadDatetime: timestamp("upload_datetime")

@@ -46,6 +46,9 @@ def register_tasks():
 
 register_tasks()
 
+import gc
+import torch
+
 @app.task(bind=True, max_retries=3, default_retry_delay=5)
 def process_image(self, task_name: str, image_id: str, job_item_id: str):
     """The main Celery task for processing an image.
@@ -61,6 +64,12 @@ def process_image(self, task_name: str, image_id: str, job_item_id: str):
     """
     conn, cur = None, None
     try:
+        # Aggressively clean up memory before starting a task
+        gc.collect()
+        use_gpu = os.getenv("USE_GPU", "true").lower() == "true"
+        if use_gpu and torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            
         conn, cur = get_db_conn_and_cursor()
 
         cur.execute("UPDATE analysis_job_item SET item_status = 'processing', started_at = NOW() WHERE id = %s", (job_item_id,))

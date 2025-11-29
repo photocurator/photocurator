@@ -4,7 +4,7 @@ from PIL import Image
 import os
 import uuid
 from ..db import get_db_connection
-from . import register_task
+from . import register_task, unload_other_models
 from .base import ImageProcessingTask
 import torch
 
@@ -17,10 +17,14 @@ class ImageCaptioningTask(ImageProcessingTask):
 
     def _load_model(self):
         """Lazily loads the pre-trained image captioning model and processor."""
+        unload_other_models(ImageCaptioningTask)
+        use_gpu = os.getenv("USE_GPU", "true").lower() == "true"
+        device = "cuda" if use_gpu and torch.cuda.is_available() else "cpu"
         if ImageCaptioningTask.model is None:
-            device = "cuda" if torch.cuda.is_available() else "cpu"
             ImageCaptioningTask.model = AutoModelForCausalLM.from_pretrained("microsoft/Florence-2-base-ft", trust_remote_code=True).to(device)
             ImageCaptioningTask.processor = AutoProcessor.from_pretrained("microsoft/Florence-2-base-ft", trust_remote_code=True)
+        else:
+            ImageCaptioningTask.model.to(device)
 
     def run(self, image_id: str):
         """The main execution method for the task.
@@ -51,7 +55,8 @@ class ImageCaptioningTask(ImageProcessingTask):
 
             image = Image.open(full_image_path)
             
-            device = "cuda" if torch.cuda.is_available() else "cpu"
+            use_gpu = os.getenv("USE_GPU", "true").lower() == "true"
+            device = "cuda" if use_gpu and torch.cuda.is_available() else "cpu"
             prompt = "<MORE_DETAILED_CAPTION>"
             inputs = self.processor(text=prompt, images=image, return_tensors="pt").to(device)
 

@@ -491,28 +491,44 @@ const analyzeProjectHandler: AppRouteHandler<typeof analyzeProjectRoute> = async
 
     const imagesToAnalyze = await db.select().from(image).where(eq(image.projectId, projectId));
 
-    const jobItems: typeof analysisJobItem.$inferSelect[] = [];
-    for (const imageToAnalyze of imagesToAnalyze) {
-        const jobItemId = randomUUID();
-        const [newJobItem] = await db.insert(analysisJobItem).values({
-            id: jobItemId,
-            jobId: newJob.id,
-            imageId: imageToAnalyze.id,
-        }).returning();
-        jobItems.push(newJobItem);
+    let tasks: string[] = [];
+    if (jobType === 'FULL_SCAN') {
+        tasks = ['quality_assessment', 'object_detection', 'image_captioning', 'exif_analysis', 'similarity_grouping'];
+    } else if (jobType === 'OBJECT_DETECTION_ONLY') {
+        tasks = ['object_detection'];
+    } else if (jobType === 'SCORING_ONLY') {
+        tasks = ['quality_assessment'];
     }
 
-    let task_name = 'quality_assessment';
-    if (jobType === 'OBJECT_DETECTION_ONLY') {
-        task_name = 'object_detection';
+    const jobItemsToInsert: typeof analysisJobItem.$inferInsert[] = [];
+    const batchRequestRequests: { image_id: string; task_name: string; job_item_id: string }[] = [];
+
+    for (const imageToAnalyze of imagesToAnalyze) {
+        for (const task of tasks) {
+            const jobItemId = randomUUID();
+            jobItemsToInsert.push({
+                id: jobItemId,
+                jobId: newJob.id,
+                imageId: imageToAnalyze.id,
+            });
+            batchRequestRequests.push({
+                image_id: imageToAnalyze.id,
+                task_name: task,
+                job_item_id: jobItemId,
+            });
+        }
+    }
+
+    if (jobItemsToInsert.length > 0) {
+        // Process in chunks to avoid query size limits
+        const chunkSize = 100;
+        for (let i = 0; i < jobItemsToInsert.length; i += chunkSize) {
+            await db.insert(analysisJobItem).values(jobItemsToInsert.slice(i, i + chunkSize));
+        }
     }
 
     const batchRequest = {
-        requests: jobItems.map(item => ({
-            image_id: item.imageId,
-            task_name,
-            job_item_id: item.id,
-        })),
+        requests: batchRequestRequests,
     };
 
     const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:8001';
@@ -596,8 +612,34 @@ const getAnalysisStatusHandler: AppRouteHandler<typeof getAnalysisStatusRoute> =
         .where(eq(analysisJobItem.jobId, latestJob[0].id));
 
     const completedItems = jobItems.filter(item => item.itemStatus === 'completed').length;
+    const failedItems = jobItems.filter(item => item.itemStatus === 'failed').length;
+    const processingItems = jobItems.filter(item => item.itemStatus === 'processing').length;
     const totalItems = jobItems.length;
     const progressPercentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
+
+    let newStatus = latestJob[0].jobStatus;
+
+    if (totalItems > 0) {
+        if (completedItems + failedItems === totalItems) {
+            newStatus = 'completed';
+        } else if (completedItems > 0 || processingItems > 0 || failedItems > 0) {
+            if (newStatus === 'pending') {
+                newStatus = 'processing';
+            }
+        }
+    }
+
+    if (newStatus !== latestJob[0].jobStatus) {
+        await db.update(analysisJob)
+            .set({ 
+                jobStatus: newStatus,
+                completedAt: newStatus === 'completed' ? new Date() : null,
+                updatedAt: new Date(),
+            })
+            .where(eq(analysisJob.id, latestJob[0].id));
+        
+        latestJob[0].jobStatus = newStatus;
+    }
 
     return c.json({
         jobId: latestJob[0].id,
