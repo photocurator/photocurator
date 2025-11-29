@@ -41,9 +41,13 @@ class Project {
 
 class ProjectService {
   late Dio _dio;
-  final String? _baseUrl = dotenv.env['API_BASE_URL'];
+  late String? _baseUrl = dotenv.env['API_BASE_URL'];
 
   ProjectService() {
+    _baseUrl = dotenv.env['API_BASE_URL'];
+    if (_baseUrl == null || _baseUrl!.isEmpty) {
+      throw Exception('API_BASE_URL not found in .env file');
+    }
     _dio = Dio(BaseOptions(
       baseUrl: _baseUrl!,
     ));
@@ -69,7 +73,6 @@ class ProjectService {
       return null;
     }
   }
-
   Future<String?> uploadImages(String projectId, List<String> photoPaths) async {
     try {
       final formData = FormData();
