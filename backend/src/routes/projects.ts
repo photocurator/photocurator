@@ -618,6 +618,7 @@ const getAnalysisStatusRoute = createRoute({
                         status: z.string(),
                         progressPercentage: z.number(),
                         completedItems: z.number(),
+                        skippedItems: z.number(),
                         totalItems: z.number(),
                     }),
                 },
@@ -668,16 +669,20 @@ const getAnalysisStatusHandler: AppRouteHandler<typeof getAnalysisStatusRoute> =
 
     const completedItems = jobItems.filter(item => item.itemStatus === 'completed').length;
     const failedItems = jobItems.filter(item => item.itemStatus === 'failed').length;
+    const skippedItems = jobItems.filter(item => item.itemStatus === 'skipped').length;
     const processingItems = jobItems.filter(item => item.itemStatus === 'processing').length;
     const totalItems = jobItems.length;
-    const progressPercentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
+    
+    // Calculate progress based on items that have reached a terminal state (completed, failed, or skipped)
+    const processedItems = completedItems + failedItems + skippedItems;
+    const progressPercentage = totalItems > 0 ? (processedItems / totalItems) * 100 : 0;
 
     let newStatus = latestJob[0].jobStatus;
 
     if (totalItems > 0) {
-        if (completedItems + failedItems === totalItems) {
+        if (processedItems === totalItems) {
             newStatus = 'completed';
-        } else if (completedItems > 0 || processingItems > 0 || failedItems > 0) {
+        } else if (processedItems > 0 || processingItems > 0) {
             if (newStatus === 'pending') {
                 newStatus = 'processing';
             }
@@ -701,6 +706,7 @@ const getAnalysisStatusHandler: AppRouteHandler<typeof getAnalysisStatusRoute> =
         status: latestJob[0].jobStatus,
         progressPercentage,
         completedItems,
+        skippedItems,
         totalItems,
     }, 200);
 };

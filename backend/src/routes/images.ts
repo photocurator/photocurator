@@ -88,6 +88,7 @@ const ImageDetailSchema = z.object({
   qualityScore: QualityScoreSchema.nullable(),
   imageSelection: ImageSelectionSchema.nullable(),
   objectTags: z.array(ObjectTagSchema),
+  groupIds: z.array(z.string()),
 });
 
 const ImageEXIFSchema = z.object({
@@ -321,10 +322,16 @@ app.openapi(getImagesRoute, async (c) => {
 
     if (imageList.length > 0) {
       const imageIds = imageList.map((i) => i.image.id);
-      const tags = await db
-        .select()
-        .from(objectTag)
-        .where(inArray(objectTag.imageId, imageIds));
+      const [tags, groupMemberships] = await Promise.all([
+        db
+          .select()
+          .from(objectTag)
+          .where(inArray(objectTag.imageId, imageIds)),
+        db
+          .select()
+          .from(imageGroupMembership)
+          .where(inArray(imageGroupMembership.imageId, imageIds))
+      ]);
 
       const tagsByImageId = tags.reduce((acc, tag) => {
         if (!acc[tag.imageId]) {
@@ -334,9 +341,18 @@ app.openapi(getImagesRoute, async (c) => {
         return acc;
       }, {} as Record<string, typeof objectTag.$inferSelect[]>);
 
+      const groupsByImageId = groupMemberships.reduce((acc, membership) => {
+        if (!acc[membership.imageId]) {
+          acc[membership.imageId] = [];
+        }
+        acc[membership.imageId].push(membership.groupId);
+        return acc;
+      }, {} as Record<string, string[]>);
+
       const responseData = imageList.map((i) => ({
         ...i,
         objectTags: tagsByImageId[i.image.id] || [],
+        groupIds: groupsByImageId[i.image.id] || [],
       }));
 
       return c.json({

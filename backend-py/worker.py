@@ -80,6 +80,13 @@ def process_image(self, task_name: str, image_id: str, job_item_id: str):
             raise ValueError(f"Task '{task_name}' not found in registry.")
 
         task_instance = task_class()
+        
+        if task_instance.check_already_processed(cur, image_id):
+            print(f"Task {task_name} for image {image_id} already processed (version {task_instance.version}). Skipping.")
+            cur.execute("UPDATE analysis_job_item SET item_status = 'skipped', completed_at = NOW() WHERE id = %s", (job_item_id,))
+            conn.commit()
+            return
+
         task_instance.run(image_id)
 
         cur.execute("UPDATE analysis_job_item SET item_status = 'completed', completed_at = NOW() WHERE id = %s", (job_item_id,))

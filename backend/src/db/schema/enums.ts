@@ -21,7 +21,7 @@ export const subscriptionTierEnum = pgEnum("subscription_tier", ["free", "basic"
  * - `sequence`: Images that form a logical sequence (e.g., panorama).
  * - `time_based`: Images grouped by close proximity in time.
  */
-export const groupTypeEnum = pgEnum("group_type", ["similar", "burst", "sequence", "time_based"]);
+export const groupTypeEnum = pgEnum("group_type", ["similar", "burst", "sequence", "time_based", "gps"]);
 
 /**
  * Enum for the type of analysis job.
@@ -30,7 +30,7 @@ export const groupTypeEnum = pgEnum("group_type", ["similar", "burst", "sequence
  * - `similarity_grouping`: Job to group similar images.
  * - `best_shot_recommendation`: Job to recommend the best shot from a group.
  */
-export const jobTypeEnum = pgEnum("job_type", ["quality_analysis", "object_detection", "similarity_grouping", "best_shot_recommendation"]);
+export const jobTypeEnum = pgEnum("job_type", ["quality_analysis", "object_detection", "similarity_grouping", "best_shot_recommendation", "exif_analysis", "image_captioning", "gps_grouping"]);
 
 /**
  * Enum for the status of a bulk analysis job.

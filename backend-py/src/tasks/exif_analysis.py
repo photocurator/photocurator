@@ -10,8 +10,16 @@ from .base import ImageProcessingTask
 
 @register_task("exif_analysis")
 class ExifAnalysisTask(ImageProcessingTask):
-    """A Celery task to extract EXIF and GPS metadata from an image and store it in the database.
-    """
+    @property
+    def version(self):
+        return "1.0.0"
+
+    def check_already_processed(self, cur, image_id: str) -> bool:
+        cur.execute(
+            "SELECT 1 FROM image_exif WHERE image_id = %s",
+            (image_id,)
+        )
+        return cur.fetchone() is not None
 
     def _get_exif_data(self, image_path):
         """Extracts EXIF and GPS data from an image file.
@@ -34,7 +42,17 @@ class ExifAnalysisTask(ImageProcessingTask):
             if 'GPSInfo' in decoded_exif:
                 for key in decoded_exif['GPSInfo'].keys():
                     decode = GPSTAGS.get(key,key)
-                    gps_info[decode] = decoded_exif['GPSInfo'][key]
+                    # Convert IFDRational to tuple or float if needed
+                    val = decoded_exif['GPSInfo'][key]
+                    if hasattr(val, 'numerator') and hasattr(val, 'denominator'):
+                        val = float(val)
+                    gps_info[decode] = val
+
+            # Convert IFDRational values in main EXIF data as well
+            for key, val in decoded_exif.items():
+                 if hasattr(val, 'numerator') and hasattr(val, 'denominator'):
+                     decoded_exif[key] = float(val)
+
 
             return decoded_exif, gps_info
         except Exception:
@@ -135,7 +153,8 @@ class ExifAnalysisTask(ImageProcessingTask):
                     str(uuid.uuid4()), image_id,
                     exif_data.get('Make'), exif_data.get('Model'), exif_data.get('LensModel'),
                     exif_data.get('FocalLength'), exif_data.get('FNumber'),
-                    str(exif_data.get('ExposureTime')), exif_data.get('ISOSpeedRatings')
+                    str(exif_data.get('ExposureTime')),
+                    str(int(float(exif_data.get('ISOSpeedRatings')))) if exif_data.get('ISOSpeedRatings') else None
                 ))
 
             if gps_info and 'GPSLatitude' in gps_info and 'GPSLongitude' in gps_info:

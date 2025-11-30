@@ -14,6 +14,17 @@ class QualityAssessmentTask(ImageProcessingTask):
     """
     model = None
 
+    @property
+    def version(self):
+        return "topiq_nr"
+
+    def check_already_processed(self, cur, image_id: str) -> bool:
+        cur.execute(
+            "SELECT 1 FROM quality_score WHERE image_id = %s AND model_version = %s",
+            (image_id, self.version)
+        )
+        return cur.fetchone() is not None
+
     def _load_model(self):
         """Lazily loads the TOPIQ image quality assessment model."""
         unload_other_models(QualityAssessmentTask)

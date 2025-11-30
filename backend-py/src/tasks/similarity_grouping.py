@@ -10,8 +10,21 @@ from .base import ImageProcessingTask
 
 @register_task("similarity_grouping")
 class SimilarityGroupingTask(ImageProcessingTask):
-    """A Celery task to group similar images based on perceptual hash and time window.
-    """
+    @property
+    def version(self):
+        return "1.0.0"
+
+    def check_already_processed(self, cur, image_id: str) -> bool:
+        cur.execute(
+            """
+            SELECT 1 
+            FROM image_group_membership igm
+            JOIN image_group ig ON igm.group_id = ig.id
+            WHERE igm.image_id = %s AND ig.group_type = 'similar'
+            """,
+            (image_id,)
+        )
+        return cur.fetchone() is not None
 
     def run(self, image_id: str):
         """The main execution method for the task.
@@ -130,27 +143,33 @@ class SimilarityGroupingTask(ImageProcessingTask):
                 # Or just the one we matched? Logic: If A matches B and C, and B, C are not in groups.
                 # We create group with A, B, C.
                 for match_id in matching_image_ids:
-                    # Check if already in group to be safe (though our query above said they weren't in the *found* groups)
-                    # But simplify: just try insert/ignore or check.
-                    # Actually, if existing_groups is empty, none of matching_image_ids are in a 'similar' group.
+                    # Check if already in group to be safe
                     cur.execute(
-                        """
-                        INSERT INTO image_group_membership (id, group_id, image_id, added_at)
-                        VALUES (%s, %s, %s, NOW())
-                        ON CONFLICT DO NOTHING
-                        """,
-                        (str(uuid.uuid4()), group_id, match_id)
+                        "SELECT 1 FROM image_group_membership WHERE group_id = %s AND image_id = %s",
+                        (group_id, match_id)
                     )
+                    if not cur.fetchone():
+                        cur.execute(
+                            """
+                            INSERT INTO image_group_membership (id, group_id, image_id, added_at)
+                            VALUES (%s, %s, %s, NOW())
+                            """,
+                            (str(uuid.uuid4()), group_id, match_id)
+                        )
 
             # Add current image to the group
             cur.execute(
-                """
-                INSERT INTO image_group_membership (id, group_id, image_id, added_at)
-                VALUES (%s, %s, %s, NOW())
-                ON CONFLICT DO NOTHING
-                """,
-                (str(uuid.uuid4()), group_id, image_id)
+                "SELECT 1 FROM image_group_membership WHERE group_id = %s AND image_id = %s",
+                (group_id, image_id)
             )
+            if not cur.fetchone():
+                cur.execute(
+                    """
+                    INSERT INTO image_group_membership (id, group_id, image_id, added_at)
+                    VALUES (%s, %s, %s, NOW())
+                    """,
+                    (str(uuid.uuid4()), group_id, image_id)
+                )
 
             conn.commit()
 

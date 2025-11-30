@@ -7,10 +7,21 @@ from .base import ImageProcessingTask
 
 @register_task("gps_grouping")
 class GpsGroupingTask(ImageProcessingTask):
-    """A Celery task to group images based on GPS location.
+    @property
+    def version(self):
+        return "1.0.0"
 
-    Images are grouped if they are within 100 meters of each other.
-    """
+    def check_already_processed(self, cur, image_id: str) -> bool:
+        cur.execute(
+            """
+            SELECT 1 
+            FROM image_group_membership igm
+            JOIN image_group ig ON igm.group_id = ig.id
+            WHERE igm.image_id = %s AND ig.group_type = 'gps'
+            """,
+            (image_id,)
+        )
+        return cur.fetchone() is not None
 
     def _haversine_distance(self, lat1, lon1, lat2, lon2):
         """Calculates the Haversine distance between two points in meters.
@@ -166,14 +177,19 @@ class GpsGroupingTask(ImageProcessingTask):
             final_members = set(all_involved_ids)
 
             for member_id in final_members:
+                # Check if membership already exists
                 cur.execute(
-                    """
-                    INSERT INTO image_group_membership (id, group_id, image_id, added_at)
-                    VALUES (%s, %s, %s, NOW())
-                    ON CONFLICT (group_id, image_id) DO NOTHING
-                    """,
-                    (str(uuid.uuid4()), target_group_id, member_id)
+                    "SELECT 1 FROM image_group_membership WHERE group_id = %s AND image_id = %s",
+                    (target_group_id, member_id)
                 )
+                if not cur.fetchone():
+                    cur.execute(
+                        """
+                        INSERT INTO image_group_membership (id, group_id, image_id, added_at)
+                        VALUES (%s, %s, %s, NOW())
+                        """,
+                        (str(uuid.uuid4()), target_group_id, member_id)
+                    )
 
             conn.commit()
 

@@ -29,6 +29,13 @@
       "when": 1764410339767,
       "tag": "0003_good_frightful_four",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1764483884499,
+      "tag": "0004_illegal_lady_vermin",
+      "breakpoints": true
     }
   ]
 }
