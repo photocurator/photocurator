@@ -115,7 +115,6 @@ class ProfileSettingScreen extends StatelessWidget {
               ),
             ),
           ),
-
           // 10. 회원 탈퇴
           NextRowItem(
             titleText: '회원 탈퇴',
@@ -128,7 +127,6 @@ class ProfileSettingScreen extends StatelessWidget {
               );
             },
           ),
-
           // 남은 공간 채우기
           Expanded(
             child: Container(), //정렬 고정용

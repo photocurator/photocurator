@@ -1,31 +1,24 @@
+// hide_screen.dart
 import 'package:flutter/material.dart';
-import 'package:photocurator/common/theme/colors.dart';
-import 'package:photocurator/common/bar/view/detail_app_bar.dart';
+import 'package:photocurator/common/widgets/photo_screen_widget.dart';
+import 'package:photocurator/common/widgets/photo_item.dart';
+import 'package:provider/provider.dart';
 
-//숨긴 사진 상세 화면
-class TrashScreen extends StatelessWidget {
+import '../../../provider/current_project_provider.dart';
+
+
+class HideScreen extends StatefulWidget {
+  const HideScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    final deviceWidth = MediaQuery.of(context).size.width;
-
-    return Scaffold(
-      appBar: DetailAppBar(
-        title: "숨긴 사진",
-        rightWidget: GestureDetector(
-          onTap: () {
-            print("우측 버튼 클릭");
-          },
-          child: Text(
-            "선택",
-            style: TextStyle(
-                fontSize: deviceWidth * (50 / 375) * (14 / 50),
-                color: AppColors.lgADB5BD
-            ),
-          ),
-        ),
-      ),
-      //body:
-    );
-  }
+  State<HideScreen> createState() => _HideScreenState();
 }
+
+class _HideScreenState extends BasePhotoScreen<HideScreen> {
+  @override
+  String get screenTitle => "숨긴 사진";
+
+  @override
+  String get viewType => "HIDDEN"; // Provider에서 숨긴 사진을 가져옴
+}
+

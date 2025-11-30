@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:photocurator/common/theme/colors.dart';
+import 'package:photocurator/common/widgets/more_dropdown.dart';
 import 'package:photocurator/common/widgets/view_more_icon.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 //상단 바의 베이직 ui
 class BaseAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -49,16 +51,13 @@ class BaseAppBar extends StatelessWidget implements PreferredSizeWidget {
 }
 
 
-//홈 상단 바
+// 홈 상단 바
+// 이거 안 씀
 class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String projectName;
-  final VoidCallback? onMenuTap;
+  final List<DropdownItem> menuItems;
 
-  const HomeAppBar({
-    Key? key,
-    required this.projectName,
-    this.onMenuTap,
-  }) : super(key: key);
+  const HomeAppBar({super.key, required this.projectName, required this.menuItems});
 
   @override
   Size get preferredSize => const Size.fromHeight(50);
@@ -70,26 +69,35 @@ class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
 
     return BaseAppBar(
       title: projectName,
-      rightWidget: Container(
-        width: barHeight, //영역 설정...터치 영역 충분히 확보되도록
-        alignment: Alignment.centerRight,
-        child: IconButton(
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
-          onPressed: onMenuTap,
-          icon: Row(
-            children: [
-              Spacer(), //정렬 맞추는 용도
-              Container(
-                width: barHeight * (20 / 50) * (1 / 6),
-                height: barHeight * (20 / 50),
-                alignment: Alignment.center,
-                child: MoreIcon(
-                  totalHeight: barHeight * (20 / 50),
-                  dotDiameter: barHeight * (20 / 50) * (1 / 6),
+      rightWidget: Builder(
+        builder: (buttonContext) => Container(
+          width: barHeight,
+          alignment: Alignment.centerRight,
+          child: IconButton(
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            onPressed: () {
+              final renderBox = buttonContext.findRenderObject() as RenderBox;
+              showMoreDropdown(
+                context: context,
+                buttonRenderBox: renderBox,
+                items: menuItems,
+              );
+            },
+            icon: Row(
+              children: [
+                Spacer(),
+                Container(
+                  width: barHeight * (20 / 50) * (1 / 6),
+                  height: barHeight * (20 / 50),
+                  alignment: Alignment.center,
+                  child: MoreIcon(
+                    totalHeight: barHeight * (20 / 50),
+                    dotDiameter: barHeight * (20 / 50) * (1 / 6),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
