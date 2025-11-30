@@ -16,12 +16,30 @@ class _LoginScreenState extends State<LoginScreen> {
   // 컨트롤러는 View의 생명주기에 종속되므로 여기서 관리합니다.
   final TextEditingController _idController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  bool _isLoginEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _idController.addListener(_updateLoginEnabled);
+    _passwordController.addListener(_updateLoginEnabled);
+  }
 
   @override
   void dispose() {
     _idController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  void _updateLoginEnabled() {
+    final canLogin = _idController.text.trim().isNotEmpty &&
+        _passwordController.text.trim().isNotEmpty;
+    if (canLogin != _isLoginEnabled) {
+      setState(() {
+        _isLoginEnabled = canLogin;
+      });
+    }
   }
 
   // 로그인 버튼 클릭 시 실행
@@ -160,11 +178,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           // 로그인 버튼
                           SizedBox(
                             width: double.infinity,
-                            child: ElevatedButton(
-                              // 로딩 중이면 버튼 비활성화
-                              onPressed: viewModel.isLoading
-                                  ? null
-                                  : () => _handleLogin(viewModel),
+                              child: ElevatedButton(
+                                // 로딩 중이면 버튼 비활성화
+                                onPressed: viewModel.isLoading || !_isLoginEnabled
+                                    ? null
+                                    : () => _handleLogin(viewModel),
                               style: ElevatedButton.styleFrom(
                                 minimumSize: const Size.fromHeight(50),
                                 backgroundColor: AppColors.dg1C1F23,

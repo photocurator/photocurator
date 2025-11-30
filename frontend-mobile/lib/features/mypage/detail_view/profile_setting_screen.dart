@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_better_auth/flutter_better_auth.dart';
+import 'package:go_router/go_router.dart';
 import 'package:photocurator/common/theme/colors.dart';
 import 'package:photocurator/common/bar/view/detail_app_bar.dart';
 import 'package:photocurator/common/widgets/next_row_item.dart';
@@ -95,9 +97,7 @@ class ProfileSettingScreen extends StatelessWidget {
           Material( // InkWell 사용을 위해
             color: Colors.transparent,
             child: InkWell( // 리플 효과 있음
-              onTap: () {
-                // 버튼 클릭 시 동작 구현
-              },
+              onTap: () => _signOut(context),
               child: Container(
                 height: 50,
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -136,5 +136,18 @@ class ProfileSettingScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _signOut(BuildContext context) async {
+    try {
+      final client = FlutterBetterAuth.client;
+      await client.signOut();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('로그아웃에 실패했습니다: $e')),
+      );
+      return;
+    }
+    context.go('/onboarding');
   }
 }
