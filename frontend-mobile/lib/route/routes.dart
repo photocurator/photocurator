@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:photocurator/common/navigator/view/bottom_navigation_bar.dart';
 import 'package:photocurator/features/auth/join/view/join_screen.dart';
 import 'package:photocurator/features/auth/login/view/login_screen.dart';
+import 'package:photocurator/features/auth/splash/splash_screen.dart';
 import 'package:photocurator/features/home/view/home_screen.dart';
 import 'package:photocurator/features/start/view/start_screen.dart';
 import 'package:photocurator/features/mypage/view/mypage_screen.dart';
@@ -14,9 +15,15 @@ import 'package:photocurator/features/auth/join/view_model/join_view_model.dart'
 
 
 final AppRouter = GoRouter(
-  initialLocation: '/onboarding',
-  //initialLocation: '/home',
+  initialLocation: '/splash',
   routes: [
+    GoRoute(
+      path: '/splash',
+      pageBuilder: (context, state) => MaterialPage(
+        key: state.pageKey,
+        child: const SplashScreen(),
+      ),
+    ),
     GoRoute(
       path: '/project/add-photos',
       pageBuilder: (context, state) {
