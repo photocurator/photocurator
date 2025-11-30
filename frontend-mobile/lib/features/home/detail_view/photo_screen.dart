@@ -8,6 +8,7 @@ import 'package:photocurator/common/widgets/view_more_icon.dart';
 import 'package:photocurator/common/widgets/photo_item.dart';
 import 'package:photocurator/common/widgets/preview_bar.dart';
 import 'dart:typed_data';
+import 'photo_detail_info_screen.dart';
 
 // 사진 상세 화면
 class PhotoScreen extends StatefulWidget {
@@ -41,7 +42,11 @@ class _PhotoScreenState extends State<PhotoScreen> {
     return Scaffold(
       appBar: DetailAppBar(
         rightWidget: GestureDetector(
-          onTap: () => print("우측 버튼 클릭"),
+          onTap: () {
+            Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => PhotoDetailInfoScreen(imageId: currentImage.id),
+            ));
+          },
           child: Container(
             width: deviceWidth * (50 / 375) * (20 / 50) * (1 / 6),
             height: deviceWidth * (50 / 375) * (20 / 50),
