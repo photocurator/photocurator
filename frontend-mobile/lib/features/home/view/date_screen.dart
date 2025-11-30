@@ -29,20 +29,25 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
   int selectedTabIndex = 0;
   List<String> dateLabels = ["전체"]; // 초기값
 
-  // 이미지 로드 완료 후 라벨 준비
+  // 이미지를 세팅 후 라벨 준비
+  @override
+  void onImagesLoaded() {
+    _prepareDateLabels();
+  }
+
   void _prepareDateLabels() {
-    final dates = images
-        .map((img) => img.captureDatetime ?? img.createdAt)
-        .map((d) => "${d.month}월 ${d.day}일")
+    if (images.isEmpty) return;
+
+    final uniqueDates = images
+        .map((img) => img.createdAt)
         .toSet()
         .toList()
-      ..sort((a, b) {
-        final aParts = a.split(RegExp(r"[월일 ]")).where((e) => e.isNotEmpty).toList();
-        final bParts = b.split(RegExp(r"[월일 ]")).where((e) => e.isNotEmpty).toList();
-        return DateTime(DateTime.now().year, int.parse(aParts[0]), int.parse(aParts[1]))
-            .compareTo(DateTime(DateTime.now().year, int.parse(bParts[0]), int.parse(bParts[1])));
-      });
-    dateLabels.addAll(dates);
+      ..sort();
+
+    setState(() {
+      dateLabels = ["전체"];
+      dateLabels.addAll(uniqueDates.map((d) => "${d.month}월 ${d.day}일"));
+    });
   }
 
   List<ImageItem> get currentImages {
@@ -50,7 +55,7 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
 
     final label = dateLabels[selectedTabIndex];
     return images.where((img) {
-      final date = img.captureDatetime ?? img.createdAt;
+      final date = img.createdAt;
       return label == "${date.month}월 ${date.day}일";
     }).toList();
   }
@@ -60,13 +65,101 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!isLoading && images.isNotEmpty && dateLabels.length <= 1) {
-      _prepareDateLabels();
-      setState(() {}); // 날짜 라벨 적용
-    }
+  Widget build(BuildContext context) {
+    final deviceWidth = MediaQuery.of(context).size.width;
+
+    return Scaffold(
+      backgroundColor: AppColors.wh1,
+      body: Column(
+        children: [
+          SelectableBar(
+            items: dateLabels,
+            selectedIndex: selectedTabIndex,
+            onItemSelected: _onTabSelected,
+            height: deviceWidth * (44 / 375),
+          ),
+          Expanded(
+            child: currentImages.isEmpty
+                ? const Center(child: Text("사진이 없습니다."))
+                : PhotoGrid(
+              images: currentImages,
+              isSelecting: isSelecting,
+              selectedImages: selectedImages,
+              onSelectToggle: toggleSelection,
+              onLongPressItem: () => setState(() => isSelecting = true),
+            ),
+          ),
+        ],
+      ),
+    );
   }
+}
+
+/*
+class _DateScreenState extends BasePhotoContent<DateScreen> {
+  @override
+  String get screenTitle => "날짜별 사진";
+
+  @override
+  String get viewType => "ALL";
+
+  @override
+  String get sortType => "time";
+
+  @override
+  String? get groupBy => "date";
+
+  int selectedTabIndex = 0;
+  List<String> dateLabels = ["전체"]; // 초기값
+
+  void _prepareDateLabels() {
+    // 기존 라벨 초기화 (항상 "전체" 하나만 유지)
+    dateLabels = ["전체"];
+
+    final uniqueDates = images
+        .map((img) => img.createdAt)
+        .toSet()
+        .toList()
+      ..sort();
+
+    dateLabels.addAll(uniqueDates.map((d) => "${d.month}월 ${d.day}일"));
+  }
+
+
+  List<ImageItem> get currentImages {
+    if (selectedTabIndex == 0) return images;
+
+    final label = dateLabels[selectedTabIndex];
+    return images.where((img) {
+      final date = img.createdAt;
+      return label == "${date.month}월 ${date.day}일";
+    }).toList();
+  }
+
+  @override
+  void onImagesLoaded() {
+    // images는 이 State의 멤버이므로 바로 접근 가능
+    if (images.isEmpty) return;
+
+    final uniqueDates = images
+        .map((img) => img.createdAt)
+        .toSet()
+        .toList()
+      ..sort();
+
+    setState(() {
+      dateLabels = ["전체"] + uniqueDates.map((d) => "${d.month}월 ${d.day}일").toList();
+      // 선택된 탭 초기화 등 추가 로직 필요하면 여기서 처리
+      if (selectedTabIndex >= dateLabels.length) selectedTabIndex = 0;
+    });
+  }
+
+
+
+  void _onTabSelected(int index) {
+    setState(() => selectedTabIndex = index);
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -144,3 +237,4 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
     );
   }
 }
+*/

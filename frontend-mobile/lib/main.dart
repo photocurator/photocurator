@@ -26,7 +26,9 @@ void main() async {
   ));
   runApp(MultiProvider(
     providers: [
-      ChangeNotifierProvider(create: (_) => CurrentProjectProvider()),
+      ChangeNotifierProvider(
+        create: (_) => CurrentProjectProvider(),
+      ),
       ChangeNotifierProvider.value(
           value: BottomNavigationViewModel(AppRouter)),
     ],

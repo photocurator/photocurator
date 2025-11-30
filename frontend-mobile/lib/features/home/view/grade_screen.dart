@@ -41,19 +41,20 @@ class _GradeScreenState extends BasePhotoContent<GradeScreen> {
     return tabImages[label] ?? [];
   }
 
-  @override
   Future<void> _loadImages() async {
     if (projectId == null) return;
 
     setState(() => isLoading = true);
 
-    final api = ApiService();
     try {
-      // 1. Best Shot 별도 호출
+      final api = ApiService();
+
+      // 1. Best Shot 이미지 가져오기
       final bestImages = await api.fetchProjectImages(
         projectId: projectId!,
         viewType: "BEST",
       );
+      final bestIds = bestImages.map((e) => e.id).toSet();
 
       // 2. 전체 이미지 가져오기 (숨김 제외)
       final allImages = await api.fetchProjectImages(
@@ -61,13 +62,21 @@ class _GradeScreenState extends BasePhotoContent<GradeScreen> {
         viewType: "ALL",
       );
 
-      // Best Shot 제외
-      final filteredImages = allImages.where((img) => !bestImages.contains(img) && !img.isRejected).toList();
+      // Best Shot 제외 + 숨김(isRejected) 제외
+      final filteredImages = allImages
+          .where((img) => !bestIds.contains(img.id) && !img.isRejected)
+          .toList();
 
-      // A컷 / B컷 분류
-      final aCut = filteredImages.where((img) => (img.score ?? 0) >= 50 && (img.score ?? 0) < 80).toList();
-      final bCut = filteredImages.where((img) => (img.score ?? 0) < 50).toList();
+      // 3. A컷 / B컷 분류
+      final aCut = filteredImages
+          .where((img) => (img.score ?? 0) >= 50 && (img.score ?? 0) < 80)
+          .toList();
+      final bCut = filteredImages
+          .where((img) => (img.score ?? 0) < 50)
+          .toList();
 
+      // 4. 상태 한 번에 갱신
+      if (!mounted) return;
       setState(() {
         tabImages["Best Shot"] = bestImages;
         tabImages["A컷"] = aCut;
@@ -75,10 +84,22 @@ class _GradeScreenState extends BasePhotoContent<GradeScreen> {
         isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => isLoading = false);
       print("이미지 불러오기 실패: $e");
     }
   }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // images가 비어 있고 아직 로딩 중이 아니면 이미지 로드 시작
+    if (!isLoading && images.isEmpty) {
+      _loadImages(); // 직접 호출
+    }
+  }
+
 
   void _onTabSelected(int index) {
     setState(() => selectedTabIndex = index);
@@ -92,7 +113,7 @@ class _GradeScreenState extends BasePhotoContent<GradeScreen> {
       backgroundColor: AppColors.wh1,
       body: Column(
         children: [
-          // 1. 등급 선택 바 → 항상 보여주기
+          // 1. 등급 선택 바
           SelectableBar(
             items: gradeLabels,
             selectedIndex: selectedTabIndex,
@@ -135,7 +156,7 @@ class _GradeScreenState extends BasePhotoContent<GradeScreen> {
           // 3. 이미지 그리드
           Expanded(
             child: isLoading
-                ? const SizedBox.shrink() // 로딩 중엔 빈 화면
+                ? const Center(child: CircularProgressIndicator())
                 : currentImages.isEmpty
                 ? const Center(
               child: Text(

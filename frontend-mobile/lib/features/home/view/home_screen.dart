@@ -4,6 +4,10 @@ import 'package:photocurator/common/bar/view/detail_app_bar.dart';
 import 'package:photocurator/common/theme/colors.dart';
 import 'package:photocurator/common/bar/view_model/home_tab_section.dart';
 import 'package:photocurator/common/widgets/more_dropdown.dart';
+import 'package:photocurator/provider/current_project_provider.dart';
+import 'package:photocurator/features/start/service/project_service.dart'; // Project 클래스 import
+import 'package:provider/provider.dart';
+
 
 import '../detail_view/trash_screen.dart';
 import '../detail_view/compare_screen.dart';
@@ -28,7 +32,11 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String pjname = "Project name"; // 나중에 실제 데이터로 교체
+    // 1️Provider에서 현재 프로젝트 id 가져오기
+    final currentProjectProvider = context.watch<CurrentProjectProvider>();
+    final String pjname = currentProjectProvider.currentProject?.projectName ?? "project name";
+
+
 
     return Scaffold(
       backgroundColor: AppColors.wh1,

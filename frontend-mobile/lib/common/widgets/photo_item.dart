@@ -1,10 +1,14 @@
 // photo_item.dart
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:dio/dio.dart';
 import 'package:photocurator/features/home/detail_view/photo_screen.dart';
 import 'package:photocurator/common/theme/colors.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_better_auth/flutter_better_auth.dart';
 
 class QualityScore {
   final double? brisque;
@@ -15,10 +19,11 @@ class QualityScore {
 
   factory QualityScore.fromJson(Map<String, dynamic>? json) {
     if (json == null) return QualityScore();
+
     double? parseScore(dynamic value) {
       if (value == null) return null;
-      if (value is String) return double.tryParse(value);
       if (value is num) return value.toDouble();
+      if (value is String) return double.tryParse(value);
       return null;
     }
 
@@ -34,26 +39,23 @@ class ImageItem {
   final String id;
   final bool isRejected;
   final double? score;
-  final DateTime? captureDatetime;
   final DateTime createdAt;
   final QualityScore qualityScore;
-
-  String get thumbnailUrl => "https://rx.r1c.cc/api/images/$id/file";
-
-  // 주제 화면용 objectTags
   final List<ObjectTag> objectTags;
 
   ImageItem({
     required this.id,
     this.isRejected = false,
     this.score,
-    this.captureDatetime,
     required this.createdAt,
     this.objectTags = const [],
     QualityScore? qualityScore,
   }) : qualityScore = qualityScore ?? QualityScore();
 
   factory ImageItem.fromJson(Map<String, dynamic> json) {
+    // 안전하게 Map<String, dynamic>으로 변환
+    final map = Map<String, dynamic>.from(json);
+
     DateTime? parseDate(String? str) {
       if (str == null) return null;
       try {
@@ -63,7 +65,6 @@ class ImageItem {
       }
     }
 
-    // objectTags 처리
     List<ObjectTag> parseTags(List<dynamic>? tags) {
       if (tags == null) return [];
       return tags.map((t) {
@@ -77,14 +78,23 @@ class ImageItem {
       }).toList();
     }
 
+    final qualityJson = Map<String, dynamic>.from(map['qualityScore'] ?? {});
+    final musiqScoreRaw = qualityJson['musiqScore'];
+
+    double? parseScore(dynamic value) {
+      if (value == null) return null;
+      if (value is num) return value.toDouble();
+      if (value is String) return double.tryParse(value);
+      return null;
+    }
+
     return ImageItem(
       id: json['image']?['id'] ?? '',
       isRejected: json['imageSelection']?['isRejected'] ?? false,
-      score: json['qualityScore']?['musiqScore']?.toDouble(),
-      captureDatetime: parseDate(json['image']?['captureDatetime']),
+      score: parseScore(musiqScoreRaw),
       createdAt: parseDate(json['image']?['createdAt']) ?? DateTime.now(),
       objectTags: parseTags(json['objectTags']),
-      qualityScore: QualityScore.fromJson(json['qualityScore']),
+      qualityScore: QualityScore.fromJson(qualityJson),
     );
   }
 
@@ -113,11 +123,20 @@ class ObjectTag {
 }
 
 class ApiService {
-  final Dio _dio = Dio(BaseOptions(
-    baseUrl: 'https://rx.r1c.cc/api',
-    connectTimeout: const Duration(seconds: 5),
-    receiveTimeout: const Duration(seconds: 5),
-  ));
+  late final Dio _dio;
+
+  ApiService() {
+    final baseUrl = dotenv.env['API_BASE_URL'];
+    if (baseUrl == null || baseUrl.isEmpty) {
+      throw Exception('API_BASE_URL not found in .env file');
+    }
+
+    _dio = Dio(BaseOptions(
+      baseUrl: baseUrl,
+      connectTimeout: const Duration(seconds: 5),
+      receiveTimeout: const Duration(seconds: 5),
+    ));
+  }
 
   Future<List<ImageItem>> fetchProjectImages({
     required String projectId,
@@ -125,17 +144,22 @@ class ApiService {
     String? sortType,
     String? groupBy,
   }) async {
-    final res = await _dio.get(
-      '/projects/$projectId/images',
-      queryParameters: {
-        if (viewType != null) 'viewType': viewType,
-        if (sortType != null) 'sort': sortType,
-        if (groupBy != null) 'groupBy': groupBy,
-      },
-    );
+    try {
+      final res = await _dio.get(
+        '/projects/$projectId/images',
+        queryParameters: {
+          if (viewType != null) 'viewType': viewType,
+          if (sortType != null) 'sort': sortType,
+          if (groupBy != null) 'groupBy': groupBy,
+        },
+      );
 
-    final data = res.data['data'] as List;
-    return data.map((e) => ImageItem.fromJson(e)).toList();
+      final data = res.data['data'] as List<dynamic>;
+      return data.map((e) => ImageItem.fromJson(Map<String, dynamic>.from(e))).toList();
+    } catch (e) {
+      print('Error fetching project images: $e');
+      return [];
+    }
   }
 }
 
@@ -162,6 +186,25 @@ class ImageItemWidget extends StatelessWidget {
     required this.size,
   });
 
+  Future<Uint8List?> _fetchImageBytes(String imageId) async {
+    try {
+      final dio = FlutterBetterAuth.dioClient; // 인증 적용된 dio
+      final response = await dio.get(
+        '${dotenv.env['API_BASE_URL']}/images/$imageId/file',
+        options: Options(responseType: ResponseType.bytes),
+      );
+
+      final bytes = response.data;
+      if (bytes is Uint8List) return bytes;
+      if (bytes is List<int>) return Uint8List.fromList(bytes);
+      return null;
+    } catch (e) {
+      debugPrint('Failed to fetch image bytes: $e');
+      return null;
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -184,20 +227,31 @@ class ImageItemWidget extends StatelessWidget {
         height: size,
         child: Stack(
           children: [
-            CachedNetworkImage(
-              imageUrl: item.thumbnailUrl,
-              width: size,
-              height: size,
-              fit: BoxFit.cover,
-              placeholder: (context, url) =>
-              const Center(child: CircularProgressIndicator()),
-              errorWidget: (context, url, error) => Container(
-                width: size,
-                height: size,
-                color: Colors.grey[300],
-                child: const Icon(Icons.broken_image),
-              ),
+            FutureBuilder<Uint8List?>(
+              future: _fetchImageBytes(item.id),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.done &&
+                    snapshot.hasData &&
+                    snapshot.data != null) {
+                  return Image.memory(
+                    snapshot.data!,
+                    fit: BoxFit.cover,
+                    width: size,
+                    height: size,
+                  );
+                } else if (snapshot.hasError) {
+                  return Container(
+                    width: size,
+                    height: size,
+                    color: Colors.grey[300],
+                    child: const Icon(Icons.broken_image),
+                  );
+                } else {
+                  return const Center(child: CircularProgressIndicator());
+                }
+              },
             ),
+
             if (isSelecting)
               Positioned(
                 top: 6,

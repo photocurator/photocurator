@@ -6,6 +6,7 @@ import 'package:photocurator/common/theme/colors.dart';
 import 'package:photocurator/features/start/view/project_card.dart';
 import 'package:photocurator/features/start/view/project_list_item.dart';
 import 'package:photocurator/features/start/view_model/start_view_model.dart';
+import 'package:photocurator/provider/current_project_provider.dart';
 
 // 분리한 위젯들 import
 import '../service/project_service.dart';
@@ -262,7 +263,14 @@ class _StartScreenState extends State<StartScreen> {
         return ProjectCard(
           project: projects[index],
           isRecent: false,
-          onTap: () => context.go('/start/home/${projects[index].id}'),
+          onTap: () {
+            // Provider에 현재 프로젝트 세팅
+            final currentProjectProvider = context.read<CurrentProjectProvider>();
+            currentProjectProvider.setProject(projects[index]);
+
+            // 화면 이동
+            context.go('/start/home/${projects[index].id}');
+          },
         );
       },
     );
@@ -276,7 +284,14 @@ class _StartScreenState extends State<StartScreen> {
       itemBuilder: (context, index) {
         return ProjectListItem(
           project: projects[index],
-          onTap: () => context.go('/start/home/${projects[index].id}'),
+          onTap: () {
+            // Provider에 현재 프로젝트 세팅
+            final currentProjectProvider = context.read<CurrentProjectProvider>();
+            currentProjectProvider.setProject(projects[index]);
+
+            // 화면 이동
+            context.go('/start/home/${projects[index].id}');
+          },
         );
       },
     );
