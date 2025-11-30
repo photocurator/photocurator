@@ -403,6 +403,7 @@ const uploadProjectImagesHandler: AppRouteHandler<typeof uploadProjectImagesRout
         .where(eq(project.id, projectId));
 
     let isFirstImage = !currentProject?.coverImageId;
+    const uploadedImageIds: string[] = [];
 
     for (const file of files) {
         const imageId = randomUUID();
@@ -421,12 +422,52 @@ const uploadProjectImagesHandler: AppRouteHandler<typeof uploadProjectImagesRout
             mimeType: file.type,
         });
 
+        uploadedImageIds.push(imageId);
+
         if (isFirstImage) {
             await db.update(project)
                 .set({ coverImageId: imageId, updatedAt: new Date() })
                 .where(eq(project.id, projectId));
             isFirstImage = false;
         }
+    }
+
+    // Trigger analysis for uploaded images
+    if (uploadedImageIds.length > 0) {
+        const jobId = randomUUID();
+        const [newJob] = await db.insert(analysisJob).values({
+            id: jobId,
+            projectId,
+            userId: user.id,
+            jobType: 'exif_analysis', // Using a specific job type for upload triggers
+        }).returning();
+
+        const jobItemsToInsert: typeof analysisJobItem.$inferInsert[] = [];
+        const batchRequestRequests: { image_id: string; task_name: string; job_item_id: string }[] = [];
+
+        for (const imgId of uploadedImageIds) {
+            const jobItemId = randomUUID();
+            jobItemsToInsert.push({
+                id: jobItemId,
+                jobId: newJob.id,
+                imageId: imgId,
+            });
+            batchRequestRequests.push({
+                image_id: imgId,
+                task_name: 'exif_analysis',
+                job_item_id: jobItemId,
+            });
+        }
+
+        await db.insert(analysisJobItem).values(jobItemsToInsert);
+
+        const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:8001';
+        // Fire and forget - don't await the fetch to not block the upload response
+        fetch(`${aiServiceUrl}/batch-analyze`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ requests: batchRequestRequests }),
+        }).catch(err => console.error('Failed to trigger background analysis:', err));
     }
 
     return c.json({ message: 'Upload successful' }, 202);
@@ -507,7 +548,7 @@ const analyzeProjectHandler: AppRouteHandler<typeof analyzeProjectRoute> = async
 
     let tasks: string[] = [];
     if (jobType === 'FULL_SCAN') {
-        tasks = ['quality_assessment', 'object_detection', 'image_captioning', 'exif_analysis', 'similarity_grouping'];
+        tasks = ['quality_assessment', 'object_detection', 'image_captioning', 'exif_analysis', 'similarity_grouping', 'gps_grouping'];
     } else if (jobType === 'OBJECT_DETECTION_ONLY') {
         tasks = ['object_detection'];
     } else if (jobType === 'SCORING_ONLY') {
