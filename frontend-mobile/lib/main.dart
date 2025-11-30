@@ -29,6 +29,7 @@ void main() async {
       ChangeNotifierProvider(
         create: (_) => CurrentProjectProvider(),
       ),
+      ChangeNotifierProvider(create: (_) => CurrentProjectImagesProvider()),
       ChangeNotifierProvider.value(
           value: BottomNavigationViewModel(AppRouter)),
     ],

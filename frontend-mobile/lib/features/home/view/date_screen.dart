@@ -5,6 +5,9 @@ import 'package:photocurator/common/bar/view/selectable_bar.dart';
 import 'package:photocurator/common/theme/colors.dart';
 import 'package:photocurator/common/widgets/photo_item.dart';
 import 'package:photocurator/common/widgets/photo_screen_widget.dart';
+import 'package:provider/provider.dart';
+
+import '../../../provider/current_project_provider.dart';
 
 class DateScreen extends StatefulWidget {
   const DateScreen({Key? key}) : super(key: key);
@@ -29,14 +32,10 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
   int selectedTabIndex = 0;
   List<String> dateLabels = ["전체"]; // 초기값
 
-  // 이미지를 세팅 후 라벨 준비
-  @override
-  void onImagesLoaded() {
-    _prepareDateLabels();
-  }
-
   void _prepareDateLabels() {
-    if (images.isEmpty) return;
+    final imageProvider = context.read<CurrentProjectImagesProvider>();
+    final images = imageProvider.allImages; // viewType이 ALL이라면 allImages
+    dateLabels = ["전체"];
 
     final uniqueDates = images
         .map((img) => img.createdAt)
@@ -44,13 +43,12 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
         .toList()
       ..sort();
 
-    setState(() {
-      dateLabels = ["전체"];
-      dateLabels.addAll(uniqueDates.map((d) => "${d.month}월 ${d.day}일"));
-    });
+    dateLabels.addAll(uniqueDates.map((d) => "${d.month}월 ${d.day}일"));
   }
 
   List<ImageItem> get currentImages {
+    final imageProvider = context.read<CurrentProjectImagesProvider>();
+    final images = imageProvider.allImages; // viewType이 ALL이라면 allImages
     if (selectedTabIndex == 0) return images;
 
     final label = dateLabels[selectedTabIndex];
@@ -60,6 +58,17 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
     }).toList();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final imageProvider = context.watch<CurrentProjectImagesProvider>();
+    if (!imageProvider.isLoading) {
+      _prepareDateLabels();
+      if (selectedTabIndex >= dateLabels.length) selectedTabIndex = 0;
+    }
+  }
+
   void _onTabSelected(int index) {
     setState(() => selectedTabIndex = index);
   }
@@ -67,6 +76,8 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
   @override
   Widget build(BuildContext context) {
     final deviceWidth = MediaQuery.of(context).size.width;
+    final imageProvider = context.watch<CurrentProjectImagesProvider>();
+    final isLoading = imageProvider.isLoading;
 
     return Scaffold(
       backgroundColor: AppColors.wh1,
@@ -78,15 +89,56 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
             onItemSelected: _onTabSelected,
             height: deviceWidth * (44 / 375),
           ),
+          SizedBox(
+            height: deviceWidth * (40 / 375),
+            child: isSelecting
+                ? SelectModeAppBar(
+              title: selectedImages.isEmpty
+                  ? "전체 선택"
+                  : "${selectedImages.length}개 선택됨",
+              deviceWidth: deviceWidth,
+              onSelectAll: () {
+                setState(() {
+                  if (selectedImages.length == currentImages.length) {
+                    selectedImages.clear();
+                  } else {
+                    selectedImages = List.from(currentImages);
+                  }
+                });
+              },
+              onCancel: () => setState(() => isSelecting = false),
+              isAllSelected:
+              selectedImages.length == currentImages.length,
+            )
+                : SortingAppBar(
+              screenTitle: screenTitle,
+              imagesCount: currentImages.length,
+              sortType: sortType ?? "time",
+              deviceWidth: deviceWidth,
+              onSelectMode: () => setState(() => isSelecting = true),
+              onSortRecommend: () =>
+                  setState(() => sortType = "recommend"),
+              onSortTime: () => setState(() => sortType = "time"),
+            ),
+          ),
           Expanded(
-            child: currentImages.isEmpty
-                ? const Center(child: Text("사진이 없습니다."))
+            child: isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : currentImages.isEmpty
+                ? const Center(
+              child: Text(
+                '선택된 날짜의 이미지가 없습니다.',
+                style: TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            )
                 : PhotoGrid(
               images: currentImages,
               isSelecting: isSelecting,
               selectedImages: selectedImages,
               onSelectToggle: toggleSelection,
-              onLongPressItem: () => setState(() => isSelecting = true),
+              onLongPressItem: () =>
+                  setState(() => isSelecting = true),
             ),
           ),
         ],
@@ -94,6 +146,7 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
     );
   }
 }
+
 
 /*
 class _DateScreenState extends BasePhotoContent<DateScreen> {

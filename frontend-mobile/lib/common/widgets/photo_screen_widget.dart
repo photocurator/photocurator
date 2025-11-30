@@ -14,18 +14,12 @@ import 'package:flutter_better_auth/flutter_better_auth.dart';
 import 'package:photocurator/provider/current_project_provider.dart';
 import 'photo_item.dart';
 
-mixin BaseScreenMixin<T extends StatefulWidget> on State<T> {
+abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T> {
+  String get screenTitle;
+  String get viewType; // 'ALL', 'TRASH', 'BEST_SHOTS', 'I_PICKED', 'HIDDEN'
+
   bool isSelecting = false;
-  bool isLoading = true;
-
-  List<ImageItem> images = [];
   List<ImageItem> selectedImages = [];
-
-  String? projectId;
-
-  String get viewType;
-  String? get sortType;
-  String? get groupBy;
 
   void toggleSelection(ImageItem item) {
     setState(() {
@@ -37,84 +31,15 @@ mixin BaseScreenMixin<T extends StatefulWidget> on State<T> {
     });
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-
-    final currentProjectProvider = context.watch<CurrentProjectProvider>();
-    final currentProjectId = currentProjectProvider.currentProject?.id;
-
-    // 프로젝트가 있고, 이전과 다른 경우에만 _loadImages 호출
-    if (currentProjectId != null && currentProjectId != projectId) {
-      projectId = currentProjectId;
-      _loadImages();
-    }
-  }
-
-  @protected
-  void onImagesLoaded() {
-    // 기본 구현은 빈 함수. 하위 클래스에서 override 가능.
-  }
-
-  Future<void> _loadImages() async {
-    if (projectId == null) return;
-
-    if (!mounted) return;
-    setState(() => isLoading = true);
-
-    try {
-      final dio = FlutterBetterAuth.dioClient; // 인증 적용
-
-      final response = await dio.get(
-        '${dotenv.env['API_BASE_URL']}/projects/$projectId/images',
-        queryParameters: {
-          'viewType': viewType,
-          'sortType': sortType,
-          'groupBy': groupBy,
-        },
-      );
-
-      List<ImageItem> fetchedImages = [];
-      if (response.statusCode == 200) {
-        final List<dynamic> dataList = response.data['data'] ?? [];
-        fetchedImages = dataList.map((json) => ImageItem.fromJson(json)).toList();
-      } else {
-        print('이미지 불러오기 실패: ${response.statusCode}');
-      }
-
-      print('fetchedImages: $fetchedImages');
-
-      if (!mounted) return;
-      setState(() {
-        images = fetchedImages;
-        isLoading = false;
-      });
-
-      // 이미지를 세팅한 직후에 훅 호출
-      onImagesLoaded();
-
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => isLoading = false);
-      print("이미지 불러오기 실패: $e");
-    }
-  }
-
-  void selectAll() => setState(() => selectedImages = List.from(images));
+  void selectAll(List<ImageItem> images) => setState(() => selectedImages = List.from(images));
   void cancelSelection() => setState(() => isSelecting = false);
-}
-
-
-abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T>
-    with BaseScreenMixin<T> {
-  String get screenTitle;
-
-  @protected
-  void onImagesLoaded() {}
 
   @override
   Widget build(BuildContext context) {
     final deviceWidth = MediaQuery.of(context).size.width;
+    final imageProvider = context.watch<CurrentProjectImagesProvider>();
+    final images = _getImagesFromProvider(imageProvider);
+    final isLoading = imageProvider.isLoading;
 
     return Scaffold(
       backgroundColor: AppColors.wh1,
@@ -133,7 +58,7 @@ abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T>
             }
           });
         },
-        onCancel: () => setState(() => isSelecting = false),
+        onCancel: () => cancelSelection(),
         isAllSelected: selectedImages.length == images.length,
       )
           : DetailAppBar(
@@ -150,7 +75,7 @@ abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T>
         ),
       ),
       body: isLoading
-          ? const SizedBox(height: 1)
+          ? const Center(child: CircularProgressIndicator())
           : PhotoGrid(
         images: images,
         isSelecting: isSelecting,
@@ -160,17 +85,55 @@ abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T>
       ),
     );
   }
+
+  List<ImageItem> _getImagesFromProvider(CurrentProjectImagesProvider provider) {
+    switch (viewType) {
+      case 'ALL':
+        return provider.allImages;
+      case 'TRASH':
+        return provider.trashImages;
+      case 'BEST_SHOTS':
+        return provider.bestShotImages;
+      case 'I_PICKED':
+        return provider.pickedImages;
+      case 'HIDDEN':
+        return provider.hiddenImages;
+      default:
+        return [];
+    }
+  }
 }
 
-abstract class BasePhotoContent<T extends StatefulWidget> extends State<T>
-    with BaseScreenMixin<T> {
+abstract class BasePhotoContent<T extends StatefulWidget> extends State<T> {
   String get screenTitle;
-  String sortType = "recommend";
+  String get viewType;
+  String sortType = "recommend"; // 기본 정렬
+
+  bool isSelecting = false;
+  List<ImageItem> selectedImages = [];
+
+  void toggleSelection(ImageItem item) {
+    setState(() {
+      if (selectedImages.contains(item)) {
+        selectedImages.remove(item);
+      } else {
+        selectedImages.add(item);
+      }
+    });
+  }
+
+  void selectAll(List<ImageItem> images) => setState(() => selectedImages = List.from(images));
+  void cancelSelection() => setState(() => isSelecting = false);
 
   @override
   Widget build(BuildContext context) {
     final deviceWidth = MediaQuery.of(context).size.width;
-    _sortImages();
+    final imageProvider = context.watch<CurrentProjectImagesProvider>();
+    final images = _getImagesFromProvider(imageProvider);
+    final isLoading = imageProvider.isLoading;
+
+    // 정렬
+    _sortImages(images);
 
     return Scaffold(
       backgroundColor: AppColors.wh1,
@@ -189,7 +152,7 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T>
             }
           });
         },
-        onCancel: () => setState(() => isSelecting = false),
+        onCancel: () => cancelSelection(),
         isAllSelected: selectedImages.length == images.length,
       )
           : SortingAppBar(
@@ -202,7 +165,7 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T>
         onSortTime: () => setState(() => sortType = "time"),
       ),
       body: isLoading
-          ? const SizedBox(height: 1)
+          ? const Center(child: CircularProgressIndicator())
           : PhotoGrid(
         images: images,
         isSelecting: isSelecting,
@@ -213,18 +176,32 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T>
     );
   }
 
-  void _sortImages() {
+  void _sortImages(List<ImageItem> images) {
     if (sortType == "recommend") {
       images.sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
     } else if (sortType == "time") {
-      images.sort((a, b) {
-        final timeA = a.createdAt;
-        final timeB = b.createdAt;
-        return timeB.compareTo(timeA);
-      });
+      images.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    }
+  }
+
+  List<ImageItem> _getImagesFromProvider(CurrentProjectImagesProvider provider) {
+    switch (viewType) {
+      case 'ALL':
+        return provider.allImages;
+      case 'TRASH':
+        return provider.trashImages;
+      case 'BEST_SHOTS':
+        return provider.bestShotImages;
+      case 'I_PICKED':
+        return provider.pickedImages;
+      case 'HIDDEN':
+        return provider.hiddenImages;
+      default:
+        return [];
     }
   }
 }
+
 
 
 

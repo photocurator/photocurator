@@ -263,10 +263,17 @@ class _StartScreenState extends State<StartScreen> {
         return ProjectCard(
           project: projects[index],
           isRecent: false,
-          onTap: () {
+          onTap: () async {
             // Provider에 현재 프로젝트 세팅
             final currentProjectProvider = context.read<CurrentProjectProvider>();
             currentProjectProvider.setProject(projects[index]);
+
+            // 2) 이전 프로젝트 이미지 초기화
+            final imagesProvider = context.read<CurrentProjectImagesProvider>();
+            imagesProvider.clear();
+
+            // 3) 새 프로젝트 이미지 로드
+            await imagesProvider.loadAllImages(projects[index].id);
 
             // 화면 이동
             context.go('/start/home/${projects[index].id}');
@@ -284,10 +291,17 @@ class _StartScreenState extends State<StartScreen> {
       itemBuilder: (context, index) {
         return ProjectListItem(
           project: projects[index],
-          onTap: () {
+          onTap: () async {
             // Provider에 현재 프로젝트 세팅
             final currentProjectProvider = context.read<CurrentProjectProvider>();
             currentProjectProvider.setProject(projects[index]);
+
+            // 2) 이전 프로젝트 이미지 초기화
+            final imagesProvider = context.read<CurrentProjectImagesProvider>();
+            imagesProvider.clear();
+
+            // 3) 새 프로젝트 이미지 로드
+            await imagesProvider.loadAllImages(projects[index].id);
 
             // 화면 이동
             context.go('/start/home/${projects[index].id}');

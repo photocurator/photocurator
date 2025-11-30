@@ -38,6 +38,7 @@ class QualityScore {
 class ImageItem {
   final String id;
   final bool isRejected;
+  final int rating;
   final double? score;
   final DateTime createdAt;
   final QualityScore qualityScore;
@@ -46,6 +47,7 @@ class ImageItem {
   ImageItem({
     required this.id,
     this.isRejected = false,
+    this.rating = 0,
     this.score,
     required this.createdAt,
     this.objectTags = const [],
@@ -91,6 +93,7 @@ class ImageItem {
     return ImageItem(
       id: json['image']?['id'] ?? '',
       isRejected: json['imageSelection']?['isRejected'] ?? false,
+      rating: json['imageSelection']?['rating'] ?? 0,
       score: parseScore(musiqScoreRaw),
       createdAt: parseDate(json['image']?['createdAt']) ?? DateTime.now(),
       objectTags: parseTags(json['objectTags']),
@@ -131,11 +134,8 @@ class ApiService {
       throw Exception('API_BASE_URL not found in .env file');
     }
 
-    _dio = Dio(BaseOptions(
-      baseUrl: baseUrl,
-      connectTimeout: const Duration(seconds: 5),
-      receiveTimeout: const Duration(seconds: 5),
-    ));
+    _dio = FlutterBetterAuth.dioClient;
+    _dio.options.baseUrl = baseUrl;
   }
 
   Future<List<ImageItem>> fetchProjectImages({
