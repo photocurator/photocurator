@@ -150,7 +150,7 @@ class _PhotoSelectionScreenState extends State<PhotoSelectionScreen> {
 
       // 사진 그리드
       body: GridView.builder(
-        padding: EdgeInsets.zero, // 상단 여백 제거 (구분선과 붙도록)
+        padding: const EdgeInsets.symmetric(horizontal: 20), // 상단 여백 제거 (구분선과 붙도록)
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 3,
           mainAxisSpacing: 1, // 간격 1px (디자인에 따라 조정)
