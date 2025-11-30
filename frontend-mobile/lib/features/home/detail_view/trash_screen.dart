@@ -1,31 +1,18 @@
+// trash_screen.dart
 import 'package:flutter/material.dart';
-import 'package:photocurator/common/theme/colors.dart';
-import 'package:photocurator/common/bar/view/detail_app_bar.dart';
+import 'package:photocurator/common/widgets/photo_screen_widget.dart';
 
-//휴지통 화면
-class TrashScreen extends StatelessWidget {
+class TrashScreen extends StatefulWidget {
+  const TrashScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    final deviceWidth = MediaQuery.of(context).size.width;
+  State<TrashScreen> createState() => _TrashScreenState();
+}
 
-    return Scaffold(
-      appBar: DetailAppBar(
-        title: "휴지통",
-        rightWidget: GestureDetector(
-          onTap: () {
-            print("우측 버튼 클릭");
-          },
-          child: Text(
-            "선택",
-            style: TextStyle(
-                fontSize: deviceWidth * (50 / 375) * (14 / 50),
-                color: AppColors.lgADB5BD
-            ),
-          ),
-        ),
-      ),
-      //body:
-    );
-  }
+class _TrashScreenState extends BasePhotoScreen<TrashScreen> {
+  @override
+  String get screenTitle => "휴지통";
+
+  @override
+  String get viewType => "TRASH"; // Provider에서 휴지통 이미지 가져옴
 }

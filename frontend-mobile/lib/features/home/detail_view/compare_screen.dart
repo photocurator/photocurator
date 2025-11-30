@@ -3,7 +3,7 @@ import 'package:photocurator/common/theme/colors.dart';
 import 'package:photocurator/common/bar/view/detail_app_bar.dart';
 
 //비교 뷰 상세 화면
-class TrashScreen extends StatelessWidget {
+class CompareScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {

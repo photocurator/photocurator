@@ -5,6 +5,7 @@ import 'package:photocurator/common/theme/colors.dart';
 import 'package:provider/provider.dart';
 import 'common/navigator/view_model/bottom_navigation_bar_view_model.dart';
 import 'package:photocurator/route/routes.dart';
+import 'package:photocurator/provider/current_project_provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
@@ -25,6 +26,10 @@ void main() async {
   ));
   runApp(MultiProvider(
     providers: [
+      ChangeNotifierProvider(
+        create: (_) => CurrentProjectProvider(),
+      ),
+      ChangeNotifierProvider(create: (_) => CurrentProjectImagesProvider()),
       ChangeNotifierProvider.value(
           value: BottomNavigationViewModel(AppRouter)),
     ],
@@ -44,3 +49,4 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+

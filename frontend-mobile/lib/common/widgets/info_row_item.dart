@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:photocurator/common/theme/colors.dart';
-import 'package:photocurator/common/widgets/back_icon.dart';
 
 // [string       string]
 // 정보 보여주는 row 아이템
