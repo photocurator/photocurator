@@ -26,6 +26,7 @@ export const image = pgTable("image", {
   mimeType: text("mime_type").notNull(),
   widthPx: integer("width_px"),
   heightPx: integer("height_px"),
+  perceptualHash: text("perceptual_hash"),
   compareViewSelected: boolean("compare_view_selected").default(false).notNull(),
   captureDatetime: timestamp("capture_datetime"),
   uploadDatetime: timestamp("upload_datetime")
@@ -47,7 +48,8 @@ export const imageEXIF = pgTable("image_exif", {
   id: text("id").primaryKey(),
   imageId: text("image_id")
     .notNull()
-    .references(() => image.id, { onDelete: "cascade" }),
+    .references(() => image.id, { onDelete: "cascade" })
+    .unique(),
   cameraMake: text("camera_make"),
   cameraModel: text("camera_model"),
   lensMake: text("lens_make"),
@@ -73,7 +75,8 @@ export const imageGPS = pgTable("image_gps", {
   id: text("id").primaryKey(),
   imageId: text("image_id")
     .notNull()
-    .references(() => image.id, { onDelete: "cascade" }),
+    .references(() => image.id, { onDelete: "cascade" })
+    .unique(),
   latitude: decimal("latitude", { precision: 10, scale: 8 }).notNull(),
   longitude: decimal("longitude", { precision: 11, scale: 8 }).notNull(),
   altitudeM: decimal("altitude_m", { precision: 10, scale: 2 }),

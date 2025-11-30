@@ -9,11 +9,27 @@ dependencies = [
     "fastapi[standard]>=0.121.1",
     "psycopg2-binary>=2.9.9",
     "ultralytics>=8.2.73",
-    "transformers>=4.43.3",
+    "safetensors==0.4.2",
+    "transformers[torch]==4.49.0",
     "pyiqa<=0.1.14.1",
     "torch>=2.4.1",
     "Pillow>=10.4.0",
     "numpy<2.0.0",
     "timm==0.9.12",
     "python-dotenv>=1.0.1",
+    "imagehash>=4.3.1",
+    "opencv-python-headless"
 ]
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cu128", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
+torchvision = [
+  { index = "pytorch-cu128", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true

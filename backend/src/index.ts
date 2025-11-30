@@ -8,8 +8,10 @@ import { swaggerUI } from '@hono/swagger-ui';
 import { auth, AuthType } from './lib/auth';
 import projects from './routes/projects';
 import images from './routes/images';
+import search from './routes/search';
 import users from './routes/users';
 import ads from './routes/ads';
+import authRouter from './routes/auth';
 import { Context } from 'hono';
 
 /**
@@ -45,18 +47,12 @@ app.use('*', async (c, next) => {
 });
 
 /**
- * Route handler for authentication-related requests.
- * It delegates the handling of authentication to the `auth.handler` function.
- * @param {Context} c - The Hono context object.
- * @returns {Response} The response from the authentication handler.
+ * Register API routes
  */
-app.on(['POST', 'GET'], '/api/auth/*', (c: Context<{ Variables: Variables }>) => {
-  return auth.handler(c.req.raw);
-});
-
-// Register API routes
+app.route('/api/auth', authRouter);
 app.route('/api/projects', projects);
 app.route('/api/images', images);
+app.route('/api/search', search);
 app.route('/api/users', users);
 app.route('/api/ads', ads);
 

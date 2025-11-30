@@ -14,9 +14,12 @@ import {
   qualityScore,
   imageCaption,
   objectTag,
+  imageEXIF,
+  imageGPS,
 } from '../db/schema';
 import { eq, and, or, ilike, gt, desc, asc, sql, exists, inArray, SQL } from 'drizzle-orm';
 import { AuthType } from '../lib/auth';
+import { randomUUID } from 'crypto';
 
 type Variables = {
   user: AuthType['user'];
@@ -85,6 +88,46 @@ const ImageDetailSchema = z.object({
   qualityScore: QualityScoreSchema.nullable(),
   imageSelection: ImageSelectionSchema.nullable(),
   objectTags: z.array(ObjectTagSchema),
+  groupIds: z.array(z.string()),
+});
+
+const ImageEXIFSchema = z.object({
+    cameraMake: z.string().nullable(),
+    cameraModel: z.string().nullable(),
+    lensMake: z.string().nullable(),
+    lensModel: z.string().nullable(),
+    focalLengthMm: z.string().nullable(),
+    apertureF: z.string().nullable(),
+    shutterSpeed: z.string().nullable(),
+    iso: z.number().nullable(),
+    exposureCompensation: z.string().nullable(),
+    flashFired: z.boolean().nullable(),
+    whiteBalance: z.string().nullable(),
+    shootingMode: z.string().nullable(),
+    orientation: z.number().nullable(),
+});
+
+const ImageGPSSchema = z.object({
+    latitude: z.string(),
+    longitude: z.string(),
+    altitudeM: z.string().nullable(),
+});
+
+const ImageCaptionSchema = z.object({
+    id: z.uuid(),
+    caption: z.string(),
+    modelVersion: z.string(),
+    createdAt: z.iso.datetime(),
+});
+
+const ImageFullDetailSchema = z.object({
+  image: ImageSchema,
+  exif: ImageEXIFSchema.nullable(),
+  gps: ImageGPSSchema.nullable(),
+  qualityScore: QualityScoreSchema.nullable(),
+  imageSelection: ImageSelectionSchema.nullable(),
+  objectTags: z.array(ObjectTagSchema),
+  captions: z.array(ImageCaptionSchema),
 });
 
 const ErrorSchema = z.object({
@@ -279,10 +322,16 @@ app.openapi(getImagesRoute, async (c) => {
 
     if (imageList.length > 0) {
       const imageIds = imageList.map((i) => i.image.id);
-      const tags = await db
-        .select()
-        .from(objectTag)
-        .where(inArray(objectTag.imageId, imageIds));
+      const [tags, groupMemberships] = await Promise.all([
+        db
+          .select()
+          .from(objectTag)
+          .where(inArray(objectTag.imageId, imageIds)),
+        db
+          .select()
+          .from(imageGroupMembership)
+          .where(inArray(imageGroupMembership.imageId, imageIds))
+      ]);
 
       const tagsByImageId = tags.reduce((acc, tag) => {
         if (!acc[tag.imageId]) {
@@ -292,9 +341,18 @@ app.openapi(getImagesRoute, async (c) => {
         return acc;
       }, {} as Record<string, typeof objectTag.$inferSelect[]>);
 
+      const groupsByImageId = groupMemberships.reduce((acc, membership) => {
+        if (!acc[membership.imageId]) {
+          acc[membership.imageId] = [];
+        }
+        acc[membership.imageId].push(membership.groupId);
+        return acc;
+      }, {} as Record<string, string[]>);
+
       const responseData = imageList.map((i) => ({
         ...i,
         objectTags: tagsByImageId[i.image.id] || [],
+        groupIds: groupsByImageId[i.image.id] || [],
       }));
 
       return c.json({
@@ -310,6 +368,220 @@ app.openapi(getImagesRoute, async (c) => {
       limit,
     });
   });
+
+const getImageDetailsRoute = createRoute({
+  method: 'get',
+  path: '/{imageId}/details',
+  summary: 'Get full image details',
+  description: 'Retrieves comprehensive details for a specific image including EXIF, object detection, captions, and scores.',
+  request: {
+    params: z.object({
+      imageId: z.uuid(),
+    }),
+  },
+  responses: {
+    200: {
+      description: 'Successful response with full image details.',
+      content: {
+        'application/json': {
+          schema: ImageFullDetailSchema,
+        },
+      },
+    },
+    401: {
+        description: 'Unauthorized access.',
+        content: {
+            'application/json': {
+            schema: ErrorSchema,
+            },
+        },
+    },
+    404: {
+        description: 'Image not found or unauthorized.',
+        content: {
+            'application/json': {
+            schema: ErrorSchema,
+            },
+        },
+    },
+  },
+});
+
+app.openapi(getImageDetailsRoute, async (c) => {
+    const { imageId } = c.req.param();
+    const user = c.get('user');
+
+    if (!user) {
+        return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    // Check ownership/access
+    const imageRecord = await db
+      .select({
+        image: imageTable,
+        exif: imageEXIF,
+        gps: imageGPS,
+        qualityScore: qualityScore,
+        imageSelection: imageSelection,
+      })
+      .from(imageTable)
+      .leftJoin(imageEXIF, eq(imageEXIF.imageId, imageTable.id))
+      .leftJoin(imageGPS, eq(imageGPS.imageId, imageTable.id))
+      .leftJoin(qualityScore, eq(qualityScore.imageId, imageTable.id))
+      .leftJoin(imageSelection, and(eq(imageSelection.imageId, imageTable.id), eq(imageSelection.userId, user.id)))
+      .leftJoin(project, eq(imageTable.projectId, project.id))
+      .where(and(
+        eq(imageTable.id, imageId),
+        or(
+            eq(imageTable.userId, user.id),
+            and(
+                eq(project.userId, user.id),
+                eq(imageTable.projectId, project.id)
+            )
+        )
+      ))
+      .limit(1);
+
+    if (imageRecord.length === 0) {
+        return c.json({ error: 'Image not found or unauthorized' }, 404);
+    }
+
+    const record = imageRecord[0];
+
+    // Fetch related lists (tags, captions)
+    const [tags, captions] = await Promise.all([
+        db.select().from(objectTag).where(eq(objectTag.imageId, imageId)),
+        db.select().from(imageCaption).where(eq(imageCaption.imageId, imageId))
+    ]);
+
+    // Helper to format dates
+    const formatDate = (d: Date) => d.toISOString();
+
+    return c.json({
+        image: {
+            ...record.image,
+            captureDatetime: record.image.captureDatetime ? formatDate(record.image.captureDatetime) : null,
+            uploadDatetime: formatDate(record.image.uploadDatetime),
+            createdAt: formatDate(record.image.createdAt),
+            updatedAt: formatDate(record.image.updatedAt),
+        },
+        exif: record.exif,
+        gps: record.gps,
+        qualityScore: record.qualityScore ? {
+            ...record.qualityScore,
+            updatedAt: formatDate(record.qualityScore.updatedAt),
+            createdAt: formatDate(record.qualityScore.createdAt),
+        } : null,
+        imageSelection: record.imageSelection ? {
+            ...record.imageSelection,
+            selectedAt: formatDate(record.imageSelection.selectedAt),
+            updatedAt: formatDate(record.imageSelection.updatedAt),
+        } : null,
+        objectTags: tags.map(t => ({
+            ...t,
+            updatedAt: formatDate(t.updatedAt),
+            createdAt: formatDate(t.createdAt),
+        })),
+        captions: captions.map(c => ({
+            ...c,
+            createdAt: formatDate(c.createdAt),
+        })),
+    });
+});
+
+const getImageFileRoute = createRoute({
+  method: 'get',
+  path: '/{imageId}/file',
+  summary: 'Get image file',
+  description: 'Serves the actual image file. Requires authentication.',
+  request: {
+    params: z.object({
+      imageId: z.uuid(),
+    }),
+  },
+  responses: {
+    200: {
+      description: 'The image file.',
+      content: {
+        'image/*': {
+          schema: z.string().openapi({ format: 'binary' }),
+        },
+      },
+    },
+    401: {
+        description: 'Unauthorized access.',
+        content: {
+            'application/json': {
+            schema: ErrorSchema,
+            },
+        },
+    },
+    404: {
+        description: 'Image not found or unauthorized.',
+        content: {
+            'application/json': {
+            schema: ErrorSchema,
+            },
+        },
+    },
+  },
+});
+
+app.openapi(getImageFileRoute, async (c) => {
+    const { imageId } = c.req.param();
+    const user = c.get('user');
+
+    if (!user) {
+        return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const imageRecord = await db
+        .select({
+            storagePath: imageTable.storagePath,
+            mimeType: imageTable.mimeType,
+        })
+        .from(imageTable)
+        .where(and(eq(imageTable.id, imageId), eq(imageTable.userId, user.id))) // Ensure user owns the image (or project logic)
+        .limit(1);
+        
+    // Note: The ownership check above restricts to images directly owned by user. 
+    // If project sharing is involved, we might need to check project ownership/membership as well.
+    // Since getImagesRoute checks "eq(imageTable.userId, user.id) OR (project.userId == user.id)", we should match that.
+    
+    if (imageRecord.length === 0) {
+        // Try checking via project ownership if not direct owner
+        const imageInProject = await db
+            .select({
+                storagePath: imageTable.storagePath,
+                mimeType: imageTable.mimeType,
+            })
+            .from(imageTable)
+            .innerJoin(project, eq(imageTable.projectId, project.id))
+            .where(and(
+                eq(imageTable.id, imageId),
+                eq(project.userId, user.id)
+            ))
+            .limit(1);
+
+        if (imageInProject.length > 0) {
+             const file = Bun.file(imageInProject[0].storagePath);
+             return new Response(file, {
+                 headers: {
+                     'Content-Type': imageInProject[0].mimeType,
+                 },
+             });
+        }
+
+        return c.json({ error: 'Image not found or unauthorized' }, 404);
+    }
+
+    const file = Bun.file(imageRecord[0].storagePath);
+    return new Response(file, {
+        headers: {
+            'Content-Type': imageRecord[0].mimeType,
+        },
+    });
+});
 
 const patchImageRoute = createRoute({
     method: 'patch',
@@ -431,9 +703,11 @@ app.openapi(putImageSelectionRoute, async (c) => {
         return c.json({ error: 'Unauthorized' }, 401);
     }
 
+    const id = randomUUID();
     await db
         .insert(imageSelection)
         .values({
+            id,
             imageId,
             userId: user.id,
             isPicked,
@@ -498,16 +772,31 @@ app.openapi(postImageRejectRoute, async (c) => {
         return c.json({ error: 'Unauthorized' }, 401);
     }
 
+    const dbReasonCode = (
+        reasonCode === 'BLURRY' ? 'out_of_focus' :
+        reasonCode === 'BAD_COMPOSITION' ? 'poor_composition' :
+        reasonCode === 'DUPLICATE' ? 'duplicate' :
+        'other'
+    ) as typeof userRejectionReason.$inferInsert['reasonCode'];
+
+    const finalReasonText = reasonCode === 'CLOSED_EYES' 
+        ? (reasonText ? `Closed eyes: ${reasonText}` : 'Closed eyes')
+        : reasonText;
+
+    const rejectionId = randomUUID();
     await db.insert(userRejectionReason).values({
+        id: rejectionId,
         imageId,
         userId: user.id,
-        reasonCode,
-        reasonText,
+        reasonCode: dbReasonCode,
+        reasonText: finalReasonText,
     });
 
+    const selectionId = randomUUID();
     await db
         .insert(imageSelection)
         .values({
+            id: selectionId,
             imageId,
             userId: user.id,
             isRejected: true,

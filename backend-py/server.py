@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from celery.result import AsyncResult
 from worker import process_image
-from src.db import get_db_connection
+from src.db import get_db_connection, release_db_connection
 import uuid
 
 app = FastAPI()
@@ -15,11 +15,36 @@ class TaskRequest(BaseModel):
     project_id: str
     user_id: str
 
+class AnalyzeRequestItem(BaseModel):
+    image_id: str
+    task_name: str
+    job_item_id: str
+
+class BatchAnalyzeRequest(BaseModel):
+    requests: list[AnalyzeRequestItem]
+
 class TaskStatus(BaseModel):
     """Response model for the status of a Celery task."""
     task_id: str
     status: str
     result: dict | None = None
+
+@app.post("/batch-analyze")
+def batch_analyze(batch_request: BatchAnalyzeRequest):
+    """Enqueues a batch of image processing tasks.
+
+    This endpoint receives a list of tasks (already recorded in the DB by the main backend)
+    and enqueues them to the Celery worker.
+
+    Args:
+        batch_request (BatchAnalyzeRequest): The request body containing the list of tasks.
+
+    Returns:
+        dict: A message indicating the number of tasks enqueued.
+    """
+    for item in batch_request.requests:
+        process_image.delay(item.task_name, item.image_id, item.job_item_id)
+    return {"message": "Batch analysis started", "count": len(batch_request.requests)}
 
 @app.post("/tasks/", response_model=TaskStatus)
 def enqueue_task(task_request: TaskRequest):
@@ -66,7 +91,7 @@ def enqueue_task(task_request: TaskRequest):
         if cur:
             cur.close()
         if conn:
-            conn.close()
+            release_db_connection(conn)
 
 @app.get("/tasks/{task_id}", response_model=TaskStatus)
 def get_task_status(task_id: str):

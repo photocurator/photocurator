@@ -43,7 +43,7 @@ The server will be available at [http://localhost:8000](http://localhost:8000).
 **2. Start the Celery Worker:**
 
 ```sh
-uv run celery -A worker.app worker --loglevel=info
+uv run celery -A worker.app worker --loglevel=info --concurrency=1
 ```
 
 This will start a Celery worker that will begin processing tasks from the queue.

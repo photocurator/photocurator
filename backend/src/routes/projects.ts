@@ -12,6 +12,7 @@ import { eq, and, gt, desc, inArray } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 import { mkdir, writeFile } from 'fs/promises';
 import { randomUUID } from 'crypto';
+import * as path from 'path';
 import { AuthType } from '../lib/auth';
 
 extendZodWithOpenApi(z);
@@ -396,9 +397,18 @@ const uploadProjectImagesHandler: AppRouteHandler<typeof uploadProjectImagesRout
     const storagePath = `storage/images/${projectId}`;
     await mkdir(storagePath, { recursive: true });
 
+    const [currentProject] = await db
+        .select({ coverImageId: project.coverImageId })
+        .from(project)
+        .where(eq(project.id, projectId));
+
+    let isFirstImage = !currentProject?.coverImageId;
+    const uploadedImageIds: string[] = [];
+
     for (const file of files) {
         const imageId = randomUUID();
-        const filePath = `${storagePath}/${imageId}`;
+        const extension = path.extname(file.name);
+        const filePath = `${storagePath}/${imageId}${extension}`;
         const buffer = await file.arrayBuffer();
         await writeFile(filePath, Buffer.from(buffer));
 
@@ -411,6 +421,53 @@ const uploadProjectImagesHandler: AppRouteHandler<typeof uploadProjectImagesRout
             fileSizeBytes: file.size,
             mimeType: file.type,
         });
+
+        uploadedImageIds.push(imageId);
+
+        if (isFirstImage) {
+            await db.update(project)
+                .set({ coverImageId: imageId, updatedAt: new Date() })
+                .where(eq(project.id, projectId));
+            isFirstImage = false;
+        }
+    }
+
+    // Trigger analysis for uploaded images
+    if (uploadedImageIds.length > 0) {
+        const jobId = randomUUID();
+        const [newJob] = await db.insert(analysisJob).values({
+            id: jobId,
+            projectId,
+            userId: user.id,
+            jobType: 'exif_analysis', // Using a specific job type for upload triggers
+        }).returning();
+
+        const jobItemsToInsert: typeof analysisJobItem.$inferInsert[] = [];
+        const batchRequestRequests: { image_id: string; task_name: string; job_item_id: string }[] = [];
+
+        for (const imgId of uploadedImageIds) {
+            const jobItemId = randomUUID();
+            jobItemsToInsert.push({
+                id: jobItemId,
+                jobId: newJob.id,
+                imageId: imgId,
+            });
+            batchRequestRequests.push({
+                image_id: imgId,
+                task_name: 'exif_analysis',
+                job_item_id: jobItemId,
+            });
+        }
+
+        await db.insert(analysisJobItem).values(jobItemsToInsert);
+
+        const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:8001';
+        // Fire and forget - don't await the fetch to not block the upload response
+        fetch(`${aiServiceUrl}/batch-analyze`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ requests: batchRequestRequests }),
+        }).catch(err => console.error('Failed to trigger background analysis:', err));
     }
 
     return c.json({ message: 'Upload successful' }, 202);
@@ -489,31 +546,47 @@ const analyzeProjectHandler: AppRouteHandler<typeof analyzeProjectRoute> = async
 
     const imagesToAnalyze = await db.select().from(image).where(eq(image.projectId, projectId));
 
-    const jobItems: typeof analysisJobItem.$inferSelect[] = [];
-    for (const imageToAnalyze of imagesToAnalyze) {
-        const jobItemId = randomUUID();
-        const [newJobItem] = await db.insert(analysisJobItem).values({
-            id: jobItemId,
-            jobId: newJob.id,
-            imageId: imageToAnalyze.id,
-        }).returning();
-        jobItems.push(newJobItem);
+    let tasks: string[] = [];
+    if (jobType === 'FULL_SCAN') {
+        tasks = ['quality_assessment', 'object_detection', 'image_captioning', 'exif_analysis', 'similarity_grouping', 'gps_grouping'];
+    } else if (jobType === 'OBJECT_DETECTION_ONLY') {
+        tasks = ['object_detection'];
+    } else if (jobType === 'SCORING_ONLY') {
+        tasks = ['quality_assessment'];
     }
 
-    let task_name = 'quality_assessment';
-    if (jobType === 'OBJECT_DETECTION_ONLY') {
-        task_name = 'object_detection';
+    const jobItemsToInsert: typeof analysisJobItem.$inferInsert[] = [];
+    const batchRequestRequests: { image_id: string; task_name: string; job_item_id: string }[] = [];
+
+    for (const imageToAnalyze of imagesToAnalyze) {
+        for (const task of tasks) {
+            const jobItemId = randomUUID();
+            jobItemsToInsert.push({
+                id: jobItemId,
+                jobId: newJob.id,
+                imageId: imageToAnalyze.id,
+            });
+            batchRequestRequests.push({
+                image_id: imageToAnalyze.id,
+                task_name: task,
+                job_item_id: jobItemId,
+            });
+        }
+    }
+
+    if (jobItemsToInsert.length > 0) {
+        // Process in chunks to avoid query size limits
+        const chunkSize = 100;
+        for (let i = 0; i < jobItemsToInsert.length; i += chunkSize) {
+            await db.insert(analysisJobItem).values(jobItemsToInsert.slice(i, i + chunkSize));
+        }
     }
 
     const batchRequest = {
-        requests: jobItems.map(item => ({
-            image_id: item.imageId,
-            task_name,
-            job_item_id: item.id,
-        })),
+        requests: batchRequestRequests,
     };
 
-    const aiServiceUrl = c.env.AI_SERVICE_URL || 'http://localhost:8001';
+    const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:8001';
     await fetch(`${aiServiceUrl}/batch-analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -545,6 +618,7 @@ const getAnalysisStatusRoute = createRoute({
                         status: z.string(),
                         progressPercentage: z.number(),
                         completedItems: z.number(),
+                        skippedItems: z.number(),
                         totalItems: z.number(),
                     }),
                 },
@@ -594,18 +668,111 @@ const getAnalysisStatusHandler: AppRouteHandler<typeof getAnalysisStatusRoute> =
         .where(eq(analysisJobItem.jobId, latestJob[0].id));
 
     const completedItems = jobItems.filter(item => item.itemStatus === 'completed').length;
+    const failedItems = jobItems.filter(item => item.itemStatus === 'failed').length;
+    const skippedItems = jobItems.filter(item => item.itemStatus === 'skipped').length;
+    const processingItems = jobItems.filter(item => item.itemStatus === 'processing').length;
     const totalItems = jobItems.length;
-    const progressPercentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
+    
+    // Calculate progress based on items that have reached a terminal state (completed, failed, or skipped)
+    const processedItems = completedItems + failedItems + skippedItems;
+    const progressPercentage = totalItems > 0 ? (processedItems / totalItems) * 100 : 0;
+
+    let newStatus = latestJob[0].jobStatus;
+
+    if (totalItems > 0) {
+        if (processedItems === totalItems) {
+            newStatus = 'completed';
+        } else if (processedItems > 0 || processingItems > 0) {
+            if (newStatus === 'pending') {
+                newStatus = 'processing';
+            }
+        }
+    }
+
+    if (newStatus !== latestJob[0].jobStatus) {
+        await db.update(analysisJob)
+            .set({ 
+                jobStatus: newStatus,
+                completedAt: newStatus === 'completed' ? new Date() : null,
+                updatedAt: new Date(),
+            })
+            .where(eq(analysisJob.id, latestJob[0].id));
+        
+        latestJob[0].jobStatus = newStatus;
+    }
 
     return c.json({
         jobId: latestJob[0].id,
         status: latestJob[0].jobStatus,
         progressPercentage,
         completedItems,
+        skippedItems,
         totalItems,
     }, 200);
 };
 
 app.openapi(getAnalysisStatusRoute, getAnalysisStatusHandler);
+
+const getProjectDetectedObjectsRoute = createRoute({
+  method: 'get',
+  path: '/{projectId}/detected-objects',
+  summary: 'Get detected objects in a project',
+  description: 'Retrieves a list of all unique detected objects found in images belonging to a specific project.',
+  request: {
+    params: z.object({
+      projectId: z.uuid(),
+    }),
+  },
+  responses: {
+    200: {
+      description: 'Successful response with a list of unique detected object tags.',
+      content: {
+        'application/json': {
+          schema: z.array(z.string()),
+        },
+      },
+    },
+    401: {
+      description: 'Unauthorized access.',
+      content: {
+        'application/json': {
+          schema: ErrorSchema,
+        },
+      },
+    },
+  },
+});
+
+app.openapi(getProjectDetectedObjectsRoute, async (c) => {
+  const { projectId } = c.req.param();
+  const user = c.get('user');
+
+  if (!user) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  // Ensure user owns the project or has access to it
+  const projectCheck = await db
+    .select()
+    .from(project)
+    .where(and(eq(project.id, projectId), eq(project.userId, user.id)))
+    .limit(1);
+
+  if (projectCheck.length === 0) {
+     // If user doesn't own project, check if they own images in it (less likely but possible with sharing logic)
+     // For now, strict project ownership check as per other routes
+     return c.json([], 200); // Or 404/403
+  }
+
+  const detectedObjects = await db
+    .select({ tagName: objectTag.tagName })
+    .from(objectTag)
+    .innerJoin(image, eq(objectTag.imageId, image.id))
+    .where(eq(image.projectId, projectId))
+    .groupBy(objectTag.tagName)
+    .orderBy(objectTag.tagName);
+
+  return c.json(detectedObjects.map(d => d.tagName), 200);
+});
 
 export default app;

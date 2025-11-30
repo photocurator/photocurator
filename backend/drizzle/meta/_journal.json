@@ -15,6 +15,27 @@
       "when": 1764384186737,
       "tag": "0001_stiff_pete_wisdom",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1764391025674,
+      "tag": "0002_slippery_malice",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1764410339767,
+      "tag": "0003_good_frightful_four",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1764483884499,
+      "tag": "0004_illegal_lady_vermin",
+      "breakpoints": true
     }
   ]
 }

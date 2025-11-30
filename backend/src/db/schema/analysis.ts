@@ -17,7 +17,8 @@ export const qualityScore = pgTable("quality_score", {
   id: text("id").primaryKey(),
   imageId: text("image_id")
     .notNull()
-    .references(() => image.id, { onDelete: "cascade" }),
+    .references(() => image.id, { onDelete: "cascade" })
+    .unique(),
   brisqueScore: decimal("brisque_score", { precision: 10, scale: 4 }),
   tenegradScore: decimal("tenegrad_score", { precision: 10, scale: 4 }),
   musiqScore: decimal("musiq_score", { precision: 10, scale: 4 }),

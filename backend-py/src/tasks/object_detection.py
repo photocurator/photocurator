@@ -3,8 +3,8 @@ import torch
 from ultralytics import YOLO
 from PIL import Image
 import os
-from ..db import get_db_connection
-from . import register_task
+from ..db import get_db_connection, release_db_connection
+from . import register_task, unload_other_models
 from .base import ImageProcessingTask
 import uuid
 
@@ -14,11 +14,23 @@ class ObjectDetectionTask(ImageProcessingTask):
     """
     model = None
 
+    @property
+    def version(self):
+        return "yolov10x"
+
+    def check_already_processed(self, cur, image_id: str) -> bool:
+        cur.execute(
+            "SELECT 1 FROM object_tag WHERE image_id = %s AND model_version = %s LIMIT 1",
+            (image_id, self.version)
+        )
+        return cur.fetchone() is not None
+
     def _load_model(self):
         """Lazily loads the YOLO object detection model."""
-        if self.model is None:
+        unload_other_models(ObjectDetectionTask)
+        if ObjectDetectionTask.model is None:
             # Using yolov10x as yolov12x is not a recognized model.
-            self.model = YOLO("yolov10x.pt")
+            ObjectDetectionTask.model = YOLO("yolov10x.pt")
 
     def run(self, image_id: str):
         """The main execution method for the task.
@@ -47,8 +59,10 @@ class ObjectDetectionTask(ImageProcessingTask):
 
             storage_base_path = os.getenv("STORAGE_BASE_PATH", "/storage")
             full_image_path = os.path.join(storage_base_path, image_path)
-
-            results = self.model(full_image_path)
+            
+            use_gpu = os.getenv("USE_GPU", "true").lower() == "true"
+            device = 0 if use_gpu and torch.cuda.is_available() else 'cpu'
+            results = self.model(full_image_path, device=device)
 
             for result in results:
                 for box in result.boxes:
@@ -79,4 +93,4 @@ class ObjectDetectionTask(ImageProcessingTask):
             if cur:
                 cur.close()
             if conn:
-                conn.close()
+                release_db_connection(conn)

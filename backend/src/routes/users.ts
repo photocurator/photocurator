@@ -117,7 +117,7 @@ app.openapi(calculateStatisticsRoute, async (c) => {
         return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const aiServiceUrl = c.env.AI_SERVICE_URL || 'http://localhost:8001';
+    const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:8001';
     const response = await fetch(`${aiServiceUrl}/statistics/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

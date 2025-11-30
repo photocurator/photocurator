@@ -1,7 +1,7 @@
 """This module defines the Celery worker and the main task for processing images."""
 from celery import Celery, states
 from src.tasks import TASK_REGISTRY
-from src.db import get_db_connection
+from src.db import get_db_connection, release_db_connection
 import os
 import importlib
 
@@ -13,6 +13,7 @@ app = Celery(
     broker=broker_url,
     backend=backend_url
 )
+app.conf.worker_pool = 'solo'
 
 def get_db_conn_and_cursor():
     """Gets a database connection and cursor.
@@ -33,7 +34,7 @@ def close_db_conn_and_cursor(conn, cursor):
     if cursor:
         cursor.close()
     if conn:
-        conn.close()
+        release_db_connection(conn)
 
 def register_tasks():
     """Dynamically imports all tasks from the `src/tasks` directory to ensure they are registered in the TASK_REGISTRY."""
@@ -44,6 +45,9 @@ def register_tasks():
             importlib.import_module(module_name)
 
 register_tasks()
+
+import gc
+import torch
 
 @app.task(bind=True, max_retries=3, default_retry_delay=5)
 def process_image(self, task_name: str, image_id: str, job_item_id: str):
@@ -60,6 +64,12 @@ def process_image(self, task_name: str, image_id: str, job_item_id: str):
     """
     conn, cur = None, None
     try:
+        # Aggressively clean up memory before starting a task
+        gc.collect()
+        use_gpu = os.getenv("USE_GPU", "true").lower() == "true"
+        if use_gpu and torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            
         conn, cur = get_db_conn_and_cursor()
 
         cur.execute("UPDATE analysis_job_item SET item_status = 'processing', started_at = NOW() WHERE id = %s", (job_item_id,))
@@ -70,6 +80,13 @@ def process_image(self, task_name: str, image_id: str, job_item_id: str):
             raise ValueError(f"Task '{task_name}' not found in registry.")
 
         task_instance = task_class()
+        
+        if task_instance.check_already_processed(cur, image_id):
+            print(f"Task {task_name} for image {image_id} already processed (version {task_instance.version}). Skipping.")
+            cur.execute("UPDATE analysis_job_item SET item_status = 'skipped', completed_at = NOW() WHERE id = %s", (job_item_id,))
+            conn.commit()
+            return
+
         task_instance.run(image_id)
 
         cur.execute("UPDATE analysis_job_item SET item_status = 'completed', completed_at = NOW() WHERE id = %s", (job_item_id,))
