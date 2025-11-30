@@ -21,6 +21,7 @@ class AppColors {
   static const Color lgADB5BD = Color(0xFFADB5BD);
   static const Color lgCBD1D6 = Color(0xFFCBD1D6);
   static const Color lgE9ECEF = Color(0xFFE9ECEF);
+  static const Color lg6C757D = Color(0xFF6C757D);
 
   // 배경
   static const Color wh1 = Color(0xFFF8F9FA);

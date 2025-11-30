@@ -6,22 +6,52 @@ import 'package:dio/dio.dart';
 import 'package:photocurator/features/home/detail_view/photo_screen.dart';
 import 'package:photocurator/common/theme/colors.dart';
 
+class QualityScore {
+  final double? brisque;
+  final double? tenegrad;
+  final double? musiq;
+
+  QualityScore({this.brisque, this.tenegrad, this.musiq});
+
+  factory QualityScore.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return QualityScore();
+    double? parseScore(dynamic value) {
+      if (value == null) return null;
+      if (value is String) return double.tryParse(value);
+      if (value is num) return value.toDouble();
+      return null;
+    }
+
+    return QualityScore(
+      brisque: parseScore(json['brisqueScore']),
+      tenegrad: parseScore(json['tenegradScore']),
+      musiq: parseScore(json['musiqScore']),
+    );
+  }
+}
+
 class ImageItem {
   final String id;
-  final String thumbnailUrl;
   final bool isRejected;
   final double? score;
   final DateTime? captureDatetime;
   final DateTime createdAt;
+  final QualityScore qualityScore;
+
+  String get thumbnailUrl => "https://rx.r1c.cc/api/images/$id/file";
+
+  // 주제 화면용 objectTags
+  final List<ObjectTag> objectTags;
 
   ImageItem({
     required this.id,
-    required this.thumbnailUrl,
     this.isRejected = false,
     this.score,
     this.captureDatetime,
     required this.createdAt,
-  });
+    this.objectTags = const [],
+    QualityScore? qualityScore,
+  }) : qualityScore = qualityScore ?? QualityScore();
 
   factory ImageItem.fromJson(Map<String, dynamic> json) {
     DateTime? parseDate(String? str) {
@@ -33,13 +63,28 @@ class ImageItem {
       }
     }
 
+    // objectTags 처리
+    List<ObjectTag> parseTags(List<dynamic>? tags) {
+      if (tags == null) return [];
+      return tags.map((t) {
+        return ObjectTag(
+          id: t['id'] ?? '',
+          imageId: t['imageId'] ?? '',
+          tagName: t['tagName'] ?? '',
+          tagCategory: t['tagCategory'] ?? '',
+          confidence: t['confidence'],
+        );
+      }).toList();
+    }
+
     return ImageItem(
-      id: json['imageId'] ?? '',
-      thumbnailUrl: json['urls']?['thumbnail'] ?? '',
-      isRejected: json['userFeedback']?['isRejected'] ?? false,
-      score: json['analysis']?['qualityScore']?['musiqScore']?.toDouble(),
-      captureDatetime: parseDate(json['exif']?['captureDatetime']),
-      createdAt: parseDate(json['createdAt']) ?? DateTime.now(),
+      id: json['image']?['id'] ?? '',
+      isRejected: json['imageSelection']?['isRejected'] ?? false,
+      score: json['qualityScore']?['musiqScore']?.toDouble(),
+      captureDatetime: parseDate(json['image']?['captureDatetime']),
+      createdAt: parseDate(json['image']?['createdAt']) ?? DateTime.now(),
+      objectTags: parseTags(json['objectTags']),
+      qualityScore: QualityScore.fromJson(json['qualityScore']),
     );
   }
 
@@ -51,8 +96,54 @@ class ImageItem {
   int get hashCode => id.hashCode;
 }
 
+class ObjectTag {
+  final String id;
+  final String imageId;
+  final String tagName;
+  final String tagCategory;
+  final String? confidence;
+
+  ObjectTag({
+    required this.id,
+    required this.imageId,
+    required this.tagName,
+    required this.tagCategory,
+    this.confidence,
+  });
+}
+
+class ApiService {
+  final Dio _dio = Dio(BaseOptions(
+    baseUrl: 'https://rx.r1c.cc/api',
+    connectTimeout: const Duration(seconds: 5),
+    receiveTimeout: const Duration(seconds: 5),
+  ));
+
+  Future<List<ImageItem>> fetchProjectImages({
+    required String projectId,
+    String? viewType,
+    String? sortType,
+    String? groupBy,
+  }) async {
+    final res = await _dio.get(
+      '/projects/$projectId/images',
+      queryParameters: {
+        if (viewType != null) 'viewType': viewType,
+        if (sortType != null) 'sort': sortType,
+        if (groupBy != null) 'groupBy': groupBy,
+      },
+    );
+
+    final data = res.data['data'] as List;
+    return data.map((e) => ImageItem.fromJson(e)).toList();
+  }
+}
+
+// image_item_widget.dart
 class ImageItemWidget extends StatelessWidget {
   final ImageItem item;
+  final List<ImageItem> images; // 전체 이미지 리스트
+  final int index;               // 현재 인덱스
   final bool isSelecting;
   final bool isSelected;
   final VoidCallback? onSelectToggle;
@@ -62,6 +153,8 @@ class ImageItemWidget extends StatelessWidget {
   const ImageItemWidget({
     super.key,
     required this.item,
+    required this.images,
+    required this.index,
     this.isSelecting = false,
     this.isSelected = false,
     this.onSelectToggle,
@@ -78,7 +171,10 @@ class ImageItemWidget extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => PhotoScreen(imageId: item.id),
+            builder: (_) => PhotoScreen(
+              images: images,
+              initialIndex: index,
+            ),
           ),
         );
       },
@@ -125,32 +221,7 @@ class ImageItemWidget extends StatelessWidget {
   }
 }
 
-class ApiService {
-  final Dio _dio = Dio(BaseOptions(
-    baseUrl: 'https://api.photocurator.com/v1',
-    connectTimeout: const Duration(seconds: 5),
-    receiveTimeout: const Duration(seconds: 5),
-  ));
-
-  Future<List<ImageItem>> fetchProjectImages({
-    required String projectId,
-    String? viewType,
-    String? sortType,
-    String? groupBy,
-  }) async {
-    final res = await _dio.get(
-      '/projects/$projectId/images',
-      queryParameters: {
-        if (viewType != null) 'viewType': viewType,
-        if (sortType != null) 'sort': sortType,
-        if (groupBy != null) 'groupBy': groupBy,
-      },
-    );
-
-    final data = res.data['data'] as List;
-    return data.map((e) => ImageItem.fromJson(e)).toList();
-  }
-}
+// photo_grid.dart
 
 class PhotoGrid extends StatelessWidget {
   final List<ImageItem> images;
@@ -170,7 +241,8 @@ class PhotoGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final itemSize = (MediaQuery.of(context).size.width - 48) / 3;
+    final deviceWidth = MediaQuery.of(context).size.width;
+    final itemSize = (deviceWidth - 48) / 3;
 
     return GridView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
@@ -187,6 +259,8 @@ class PhotoGrid extends StatelessWidget {
           height: itemSize,
           child: ImageItemWidget(
             item: item,
+            images: images,  // 전체 리스트 전달
+            index: index,    // 현재 인덱스 전달
             isSelecting: isSelecting,
             isSelected: selectedImages.contains(item),
             onSelectToggle: () => onSelectToggle(item),

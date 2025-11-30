@@ -4,9 +4,11 @@ import 'package:photocurator/common/bar/view/detail_app_bar.dart';
 import 'package:photocurator/common/theme/colors.dart';
 import 'package:photocurator/common/bar/view_model/home_tab_section.dart';
 import 'package:photocurator/common/widgets/more_dropdown.dart';
+
 import '../detail_view/trash_screen.dart';
 import '../detail_view/compare_screen.dart';
 import '../detail_view/pj_setting_screen.dart';
+
 import '../dashboard_view/dashboard_screen.dart';
 import './highlight_screen.dart';
 import './like_screen.dart';
@@ -15,20 +17,25 @@ import './grade_screen.dart';
 import './subject_screen.dart';
 import './setting_screen.dart';
 
-// 추후 데이터 교체 요망
-// 홈 화면 핸들링
+// 홈 화면
 class HomeScreen extends StatelessWidget {
+  final String projectId;
+
+  const HomeScreen({
+    super.key,
+    required this.projectId,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final String pjname = "Project name";  //추후에 프로젝트 이름 데이터 넣을 것
+    final String pjname = "Project name"; // 나중에 실제 데이터로 교체
 
     return Scaffold(
       backgroundColor: AppColors.wh1,
 
+      // 👉 더보기 드롭다운 포함된 커스텀 앱바 유지
       appBar: HomeAppBar(
         projectName: pjname,
-        // 더보기 메뉴
         menuItems: [
           DropdownItem(
             text: "이미지 업로드",
@@ -57,7 +64,7 @@ class HomeScreen extends StatelessWidget {
             },
           ),
           DropdownItem(
-              text: "프로젝트 설정",
+            text: "프로젝트 설정",
             onTap: () {
               Navigator.push(
                 context,
@@ -67,25 +74,25 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
-        body: Column(
-          children: [
-            Container(height: 1),
 
-            Expanded(
-              child: HomeTabSection(
-                pages: [
-                  HighlightScreen(),
-                  LikeScreen(),
-                  DateScreen(),
-                  GradeScreen(),
-                  SubjectScreen(),
-                  SettingScreen(),
-                ],
-              ),
+      // 👉 main 브랜치의 body 구조 유지
+      body: Column(
+        children: [
+          Container(height: 1),
+          Expanded(
+            child: HomeTabSection(
+              pages: [
+                HighlightScreen(),
+                LikeScreen(),
+                DateScreen(),
+                GradeScreen(),
+                SubjectScreen(),
+                SettingScreen(),
+              ],
             ),
-          ],
-        )
-
+          ),
+        ],
+      ),
     );
   }
 }

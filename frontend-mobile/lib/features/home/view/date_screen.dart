@@ -27,7 +27,7 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
   String? get groupBy => "date";
 
   int selectedTabIndex = 0;
-  List<String> dateLabels = ["전체"]; // 초기값 추가
+  List<String> dateLabels = ["전체"]; // 초기값
 
   // 이미지 로드 완료 후 라벨 준비
   void _prepareDateLabels() {
@@ -60,10 +60,11 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
   }
 
   @override
-  void didUpdateWidget(covariant DateScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     if (!isLoading && images.isNotEmpty && dateLabels.length <= 1) {
       _prepareDateLabels();
+      setState(() {}); // 날짜 라벨 적용
     }
   }
 
@@ -75,7 +76,7 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
       backgroundColor: AppColors.wh1,
       body: Column(
         children: [
-          // 1. 날짜 선택 바 → 항상 보이게
+          // 1. 날짜 선택 바
           SelectableBar(
             items: dateLabels,
             selectedIndex: selectedTabIndex,
@@ -120,13 +121,13 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
           // 3. 이미지 그리드
           Expanded(
             child: isLoading
-                ? Container(color: AppColors.wh1) // 로딩 중이면 흰색 화면
+                ? Container(color: AppColors.wh1)
                 : currentImages.isEmpty
                 ? const Center(
               child: Text(
                 '선택된 날짜의 이미지가 없습니다.',
-                style:
-                TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.bold),
               ),
             )
                 : PhotoGrid(
@@ -134,7 +135,8 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
               isSelecting: isSelecting,
               selectedImages: selectedImages,
               onSelectToggle: toggleSelection,
-              onLongPressItem: () => setState(() => isSelecting = true),
+              onLongPressItem: () =>
+                  setState(() => isSelecting = true),
             ),
           ),
         ],
