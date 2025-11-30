@@ -22,6 +22,7 @@ class _SearchScreenState extends State<SearchScreen> {
   int _page = 1;
   final int _limit = 20;
   final Map<String, Future<Uint8List?>> _imageBytesFutures = {};
+  int _searchToken = 0;
 
   // [상태 변수]
   List<String> _searchTags = [];
@@ -46,6 +47,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _performSearch() async {
+    final int currentToken = ++_searchToken;
     setState(() {
       _isLoading = true;
     });
@@ -58,7 +60,9 @@ class _SearchScreenState extends State<SearchScreen> {
         limit: _limit,
       );
       if (!mounted) return;
+      if (currentToken != _searchToken) return;
       setState(() {
+        _imageBytesFutures.clear();
         _searchResults = results;
         _selectedItemIndices.clear();
         if (_isSelectionMode && results.isEmpty) {
@@ -208,7 +212,7 @@ class _SearchScreenState extends State<SearchScreen> {
             children: [
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
                   border: Border.all(color: AppColors.lgE9ECEF),
                   borderRadius: BorderRadius.circular(16),
@@ -224,7 +228,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 onTap: _prjSelectionMode,
                 child: Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                       color: AppColors.lgE9ECEF,
                       borderRadius: BorderRadius.circular(16)),
@@ -244,7 +248,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20.5, vertical: 15),
+      padding: const EdgeInsets.only(left: 20.5, right: 20.5, top: 15, bottom: 10),
       child: Container(
         height: 40,
         decoration: BoxDecoration(
@@ -282,7 +286,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
             border: InputBorder.none,
             contentPadding:
-                const EdgeInsets.only(left: 20, top: 12, bottom: 12),
+            const EdgeInsets.only(left: 20, top: 12, bottom: 12),
           ),
         ),
       ),
@@ -290,8 +294,9 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildTagList() {
-    return SizedBox(
+    return Container(
       height: 32,
+      margin: const EdgeInsets.only(bottom: 8), // 태그가 있을 때만 아래 여백 추가
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -346,66 +351,67 @@ class _SearchScreenState extends State<SearchScreen> {
     if (_searchResults.isEmpty) return const SizedBox.shrink();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           _isSelectionMode
               ? GestureDetector(
-                  onTap: _toggleSelectAllItems,
-                  child: Row(children: [
-                    SvgPicture.asset(
-                      _selectedItemIndices.length == _searchResults.length
-                          ? 'assets/icons/button/selected_button.svg'
-                          : 'assets/icons/button/unselected_button.svg',
-                      width: 14,
-                      height: 14,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                        _selectedItemIndices.isEmpty
-                            ? '전체 선택'
-                            : '${_selectedItemIndices.length}개 선택됨',
-                        style: const TextStyle(
-                            fontFamily: 'NotoSansMedium',
-                            fontSize: 14,
-                            color: AppColors.dg1C1F23))
-                  ]))
+              onTap: _toggleSelectAllItems,
+              child: Row(children: [
+                SvgPicture.asset(
+                  _selectedItemIndices.length == _searchResults.length
+                      ? 'assets/icons/button/selected_button.svg'
+                      : 'assets/icons/button/unselected_button.svg',
+                  width: 14,
+                  height: 14,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                    _selectedItemIndices.isEmpty
+                        ? '전체 선택'
+                        : '${_selectedItemIndices.length}개 선택됨',
+                    style: const TextStyle(
+                        fontFamily: 'NotoSansMedium',
+                        fontSize: 14,
+                        color: AppColors.dg1C1F23))
+              ]))
               : Text('이미지 ${_searchResults.length}',
-                  style: const TextStyle(
-                      fontFamily: 'NotoSansRegular',
-                      fontSize: 13,
-                      color: AppColors.lgADB5BD)),
+              style: const TextStyle(
+                  fontFamily: 'NotoSansRegular',
+                  fontSize: 13,
+                  color: AppColors.lgADB5BD)),
           _isSelectionMode
               ? GestureDetector(
-                  onTap: _toggleSelectionMode,
-                  child: const Text('취소',
-                      style: TextStyle(
-                          fontFamily: 'NotoSansRegular',
-                          fontSize: 14,
-                          color: AppColors.dg1C1F23)))
+              onTap: _toggleSelectionMode,
+              child: const Text('취소',
+                  style: TextStyle(
+                      fontFamily: 'NotoSansRegular',
+                      fontSize: 14,
+                      color: AppColors.dg1C1F23)))
               : Row(children: [
-                  const Text('시간순',
-                      style: TextStyle(
-                          fontFamily: 'NotoSansRegular',
-                          fontSize: 12,
-                          color: AppColors.dg1C1F23)),
-                  const SizedBox(width: 8),
-                  Container(
-                      width: 1, height: 10, color: AppColors.lgE9ECEF),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                      onTap: _toggleSelectionMode,
-                      child: const Text('선택',
-                          style: TextStyle(
-                              fontFamily: 'NotoSansRegular',
-                              fontSize: 12,
-                              color: AppColors.dg1C1F23)))
-                ])
+            const Text('시간순',
+                style: TextStyle(
+                    fontFamily: 'NotoSansRegular',
+                    fontSize: 12,
+                    color: AppColors.dg1C1F23)),
+            const SizedBox(width: 8),
+            Container(
+                width: 1, height: 10, color: AppColors.lgE9ECEF),
+            const SizedBox(width: 8),
+            GestureDetector(
+                onTap: _toggleSelectionMode,
+                child: const Text('선택',
+                    style: TextStyle(
+                        fontFamily: 'NotoSansRegular',
+                        fontSize: 12,
+                        color: AppColors.dg1C1F23)))
+          ])
         ],
       ),
     );
   }
+
   Widget _buildResultGrid() {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -496,7 +502,7 @@ class _SearchScreenState extends State<SearchScreen> {
             width: 20,
             height: 20,
             placeholderBuilder: (context) =>
-                const Icon(Icons.circle, size: 24, color: AppColors.dg495057)),
+            const Icon(Icons.circle, size: 24, color: AppColors.dg495057)),
         const SizedBox(height: 4),
         Text(label,
             style: const TextStyle(fontSize: 10, color: AppColors.dg495057))
