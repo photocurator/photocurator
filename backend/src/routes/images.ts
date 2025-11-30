@@ -14,6 +14,8 @@ import {
   qualityScore,
   imageCaption,
   objectTag,
+  imageEXIF,
+  imageGPS,
 } from '../db/schema';
 import { eq, and, or, ilike, gt, desc, asc, sql, exists, inArray, SQL } from 'drizzle-orm';
 import { AuthType } from '../lib/auth';
@@ -86,6 +88,45 @@ const ImageDetailSchema = z.object({
   qualityScore: QualityScoreSchema.nullable(),
   imageSelection: ImageSelectionSchema.nullable(),
   objectTags: z.array(ObjectTagSchema),
+});
+
+const ImageEXIFSchema = z.object({
+    cameraMake: z.string().nullable(),
+    cameraModel: z.string().nullable(),
+    lensMake: z.string().nullable(),
+    lensModel: z.string().nullable(),
+    focalLengthMm: z.string().nullable(),
+    apertureF: z.string().nullable(),
+    shutterSpeed: z.string().nullable(),
+    iso: z.number().nullable(),
+    exposureCompensation: z.string().nullable(),
+    flashFired: z.boolean().nullable(),
+    whiteBalance: z.string().nullable(),
+    shootingMode: z.string().nullable(),
+    orientation: z.number().nullable(),
+});
+
+const ImageGPSSchema = z.object({
+    latitude: z.string(),
+    longitude: z.string(),
+    altitudeM: z.string().nullable(),
+});
+
+const ImageCaptionSchema = z.object({
+    id: z.uuid(),
+    caption: z.string(),
+    modelVersion: z.string(),
+    createdAt: z.iso.datetime(),
+});
+
+const ImageFullDetailSchema = z.object({
+  image: ImageSchema,
+  exif: ImageEXIFSchema.nullable(),
+  gps: ImageGPSSchema.nullable(),
+  qualityScore: QualityScoreSchema.nullable(),
+  imageSelection: ImageSelectionSchema.nullable(),
+  objectTags: z.array(ObjectTagSchema),
+  captions: z.array(ImageCaptionSchema),
 });
 
 const ErrorSchema = z.object({
@@ -311,6 +352,126 @@ app.openapi(getImagesRoute, async (c) => {
       limit,
     });
   });
+
+const getImageDetailsRoute = createRoute({
+  method: 'get',
+  path: '/{imageId}/details',
+  summary: 'Get full image details',
+  description: 'Retrieves comprehensive details for a specific image including EXIF, object detection, captions, and scores.',
+  request: {
+    params: z.object({
+      imageId: z.uuid(),
+    }),
+  },
+  responses: {
+    200: {
+      description: 'Successful response with full image details.',
+      content: {
+        'application/json': {
+          schema: ImageFullDetailSchema,
+        },
+      },
+    },
+    401: {
+        description: 'Unauthorized access.',
+        content: {
+            'application/json': {
+            schema: ErrorSchema,
+            },
+        },
+    },
+    404: {
+        description: 'Image not found or unauthorized.',
+        content: {
+            'application/json': {
+            schema: ErrorSchema,
+            },
+        },
+    },
+  },
+});
+
+app.openapi(getImageDetailsRoute, async (c) => {
+    const { imageId } = c.req.param();
+    const user = c.get('user');
+
+    if (!user) {
+        return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    // Check ownership/access
+    const imageRecord = await db
+      .select({
+        image: imageTable,
+        exif: imageEXIF,
+        gps: imageGPS,
+        qualityScore: qualityScore,
+        imageSelection: imageSelection,
+      })
+      .from(imageTable)
+      .leftJoin(imageEXIF, eq(imageEXIF.imageId, imageTable.id))
+      .leftJoin(imageGPS, eq(imageGPS.imageId, imageTable.id))
+      .leftJoin(qualityScore, eq(qualityScore.imageId, imageTable.id))
+      .leftJoin(imageSelection, and(eq(imageSelection.imageId, imageTable.id), eq(imageSelection.userId, user.id)))
+      .leftJoin(project, eq(imageTable.projectId, project.id))
+      .where(and(
+        eq(imageTable.id, imageId),
+        or(
+            eq(imageTable.userId, user.id),
+            and(
+                eq(project.userId, user.id),
+                eq(imageTable.projectId, project.id)
+            )
+        )
+      ))
+      .limit(1);
+
+    if (imageRecord.length === 0) {
+        return c.json({ error: 'Image not found or unauthorized' }, 404);
+    }
+
+    const record = imageRecord[0];
+
+    // Fetch related lists (tags, captions)
+    const [tags, captions] = await Promise.all([
+        db.select().from(objectTag).where(eq(objectTag.imageId, imageId)),
+        db.select().from(imageCaption).where(eq(imageCaption.imageId, imageId))
+    ]);
+
+    // Helper to format dates
+    const formatDate = (d: Date) => d.toISOString();
+
+    return c.json({
+        image: {
+            ...record.image,
+            captureDatetime: record.image.captureDatetime ? formatDate(record.image.captureDatetime) : null,
+            uploadDatetime: formatDate(record.image.uploadDatetime),
+            createdAt: formatDate(record.image.createdAt),
+            updatedAt: formatDate(record.image.updatedAt),
+        },
+        exif: record.exif,
+        gps: record.gps,
+        qualityScore: record.qualityScore ? {
+            ...record.qualityScore,
+            updatedAt: formatDate(record.qualityScore.updatedAt),
+            createdAt: formatDate(record.qualityScore.createdAt),
+        } : null,
+        imageSelection: record.imageSelection ? {
+            ...record.imageSelection,
+            selectedAt: formatDate(record.imageSelection.selectedAt),
+            updatedAt: formatDate(record.imageSelection.updatedAt),
+        } : null,
+        objectTags: tags.map(t => ({
+            ...t,
+            updatedAt: formatDate(t.updatedAt),
+            createdAt: formatDate(t.createdAt),
+        })),
+        captions: captions.map(c => ({
+            ...c,
+            createdAt: formatDate(c.createdAt),
+        })),
+    });
+});
 
 const getImageFileRoute = createRoute({
   method: 'get',
