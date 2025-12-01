@@ -20,7 +20,7 @@ class _SearchScreenState extends State<SearchScreen> {
   final ProjectService _projectService = ProjectService();
   final SearchService _searchService = SearchService();
   int _page = 1;
-  final int _limit = 20;
+  final int _limit = 100;
   final Map<String, Future<Uint8List?>> _imageBytesFutures = {};
   int _searchToken = 0;
 
