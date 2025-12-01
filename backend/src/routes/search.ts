@@ -180,6 +180,7 @@ app.openapi(searchImagesRoute, async (c) => {
   }
 
   if (detectedObject) {
+    const objects = detectedObject.split(',');
     const tagExists = exists(
       db
         .select()
@@ -187,7 +188,7 @@ app.openapi(searchImagesRoute, async (c) => {
         .where(
           and(
             eq(objectTag.imageId, imageTable.id),
-            eq(objectTag.tagName, detectedObject) // Exact match as requested
+            inArray(objectTag.tagName, objects) // Exact match as requested
           )
         )
     );
