@@ -52,7 +52,7 @@ class SearchService {
     String? projectId,
     List<String> detectedObjects = const [],
     int page = 1,
-    int limit = 20,
+    int limit = 100,
   }) async {
     try {
       final params = <String, dynamic>{
