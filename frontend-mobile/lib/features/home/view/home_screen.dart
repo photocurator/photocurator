@@ -20,6 +20,7 @@ import './date_screen.dart';
 import './grade_screen.dart';
 import './subject_screen.dart';
 import './setting_screen.dart';
+import 'package:photocurator/features/start/view/photo_selection_screen.dart';
 
 // 홈 화면
 class HomeScreen extends StatelessWidget {
@@ -47,7 +48,17 @@ class HomeScreen extends StatelessWidget {
         menuItems: [
           DropdownItem(
             text: "이미지 업로드",
-            onTap: () => print("업로드 클릭"),
+            onTap: () {
+              final pid = currentProjectProvider.currentProject?.id ?? projectId;
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => PhotoSelectionScreen(
+                          projectName: pjname,
+                          projectId: pid,
+                        )),
+              );
+            },
           ),
           DropdownItem(
             text: "검색",

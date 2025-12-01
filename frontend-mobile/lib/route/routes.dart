@@ -78,30 +78,30 @@ final AppRouter = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
+              path: '/start',
+              pageBuilder: (context, state) => MaterialPage(
+                    key: state.pageKey,
+                    child: StartScreen(),
+                  ),
+              routes: [
+                GoRoute(
+                  path: 'home/:projectId',
+                  pageBuilder: (context, state) {
+                    final projectId = state.pathParameters['projectId']!;
+                    return MaterialPage(
+                      key: state.pageKey,
+                      child: HomeScreen(projectId: projectId),
+                    );
+                  },
+                ),
+              ]),
+            GoRoute(
               path: '/project-selection',
               pageBuilder: (context, state) => MaterialPage(
                 key: state.pageKey,
                 child: const PjSelectionScreen(),
               ),
             ),
-            GoRoute(
-                path: '/start',
-                pageBuilder: (context, state) => MaterialPage(
-                      key: state.pageKey,
-                      child: StartScreen(),
-                    ),
-                routes: [
-                  GoRoute(
-                    path: 'home/:projectId',
-                    pageBuilder: (context, state) {
-                      final projectId = state.pathParameters['projectId']!;
-                      return MaterialPage(
-                        key: state.pageKey,
-                        child: HomeScreen(projectId: projectId),
-                      );
-                    },
-                  ),
-                ]),
           ],
         ),
         StatefulShellBranch(
