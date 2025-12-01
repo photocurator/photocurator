@@ -21,18 +21,17 @@ class ExifAnalysisTask(ImageProcessingTask):
         )
         return cur.fetchone() is not None
 
-    def _get_exif_data(self, image_path):
-        """Extracts EXIF and GPS data from an image file.
+    def _get_exif_data_from_img(self, image):
+        """Extracts EXIF and GPS data from an image object.
 
         Args:
-            image_path (str): The path to the image file.
+            image (PIL.Image): The image object.
 
         Returns:
             tuple: A tuple containing the decoded EXIF data and GPS information,
                    or (None, None) if no EXIF data is found or an error occurs.
         """
         try:
-            image = Image.open(image_path)
             exif_data = image._getexif()
             if not exif_data:
                 return None, None
@@ -119,7 +118,19 @@ class ExifAnalysisTask(ImageProcessingTask):
             storage_base_path = os.getenv("STORAGE_BASE_PATH", "/storage")
             full_image_path = os.path.join(storage_base_path, image_path)
 
-            exif_data, gps_info = self._get_exif_data(full_image_path)
+            try:
+                with Image.open(full_image_path) as img:
+                    width, height = img.size
+                    exif_data, gps_info = self._get_exif_data_from_img(img)
+            except Exception as e:
+                print(f"Error opening image {image_id}: {e}")
+                return
+
+            # Update image dimensions
+            cur.execute(
+                "UPDATE image SET width_px = %s, height_px = %s WHERE id = %s",
+                (width, height, image_id)
+            )
 
             if exif_data:
                 # Extract capture time
@@ -137,24 +148,59 @@ class ExifAnalysisTask(ImageProcessingTask):
                         (capture_time, image_id)
                     )
 
+                # Map Flash to boolean
+                flash_val = exif_data.get('Flash')
+                flash_fired = bool(flash_val & 1) if isinstance(flash_val, int) else None
+
+                # Map ExposureProgram to string (Shooting Mode)
+                exposure_program_map = {
+                    0: 'Not Defined',
+                    1: 'Manual',
+                    2: 'Normal Program',
+                    3: 'Aperture Priority',
+                    4: 'Shutter Priority',
+                    5: 'Creative Program',
+                    6: 'Action Program',
+                    7: 'Portrait Mode',
+                    8: 'Landscape Mode'
+                }
+                exposure_program = exif_data.get('ExposureProgram')
+                shooting_mode = exposure_program_map.get(exposure_program, str(exposure_program)) if exposure_program is not None else None
+
                 # Using INSERT ... ON CONFLICT to handle existing records
                 cur.execute("""
-                    INSERT INTO image_exif (id, image_id, camera_make, camera_model, lens_model, focal_length_mm, aperture_f, shutter_speed, iso, created_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                    INSERT INTO image_exif (
+                        id, image_id, camera_make, camera_model, lens_make, lens_model, 
+                        focal_length_mm, aperture_f, shutter_speed, iso, 
+                        exposure_compensation, flash_fired, white_balance, shooting_mode, orientation,
+                        created_at
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                     ON CONFLICT (image_id) DO UPDATE SET
                         camera_make = EXCLUDED.camera_make,
                         camera_model = EXCLUDED.camera_model,
+                        lens_make = EXCLUDED.lens_make,
                         lens_model = EXCLUDED.lens_model,
                         focal_length_mm = EXCLUDED.focal_length_mm,
                         aperture_f = EXCLUDED.aperture_f,
                         shutter_speed = EXCLUDED.shutter_speed,
-                        iso = EXCLUDED.iso;
+                        iso = EXCLUDED.iso,
+                        exposure_compensation = EXCLUDED.exposure_compensation,
+                        flash_fired = EXCLUDED.flash_fired,
+                        white_balance = EXCLUDED.white_balance,
+                        shooting_mode = EXCLUDED.shooting_mode,
+                        orientation = EXCLUDED.orientation;
                 """, (
                     str(uuid.uuid4()), image_id,
-                    exif_data.get('Make'), exif_data.get('Model'), exif_data.get('LensModel'),
+                    exif_data.get('Make'), exif_data.get('Model'), exif_data.get('LensMake'), exif_data.get('LensModel'),
                     exif_data.get('FocalLength'), exif_data.get('FNumber'),
                     str(exif_data.get('ExposureTime')),
-                    str(int(float(exif_data.get('ISOSpeedRatings')))) if exif_data.get('ISOSpeedRatings') else None
+                    str(int(float(exif_data.get('ISOSpeedRatings')))) if exif_data.get('ISOSpeedRatings') else None,
+                    exif_data.get('ExposureBiasValue'),
+                    flash_fired,
+                    str(exif_data.get('WhiteBalance')) if exif_data.get('WhiteBalance') is not None else None,
+                    shooting_mode,
+                    exif_data.get('Orientation')
                 ))
 
             if gps_info and 'GPSLatitude' in gps_info and 'GPSLongitude' in gps_info:

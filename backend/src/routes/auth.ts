@@ -1,5 +1,8 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { auth } from '../lib/auth';
+import { db } from '../db';
+import { user } from '../db/schema';
+import { eq } from 'drizzle-orm';
 
 const app = new OpenAPIHono();
 
@@ -8,6 +11,7 @@ const UserSchema = z.object({
     email: z.string().email(),
     emailVerified: z.boolean(),
     name: z.string(),
+    nickname: z.string().nullable().optional(),
     createdAt: z.string(),
     updatedAt: z.string(),
     image: z.string().nullable().optional(),
@@ -92,6 +96,7 @@ const signUpRoute = createRoute({
                         email: z.email(),
                         password: z.string().min(8),
                         name: z.string().min(1),
+                        nickname: z.string().optional(),
                         image: z.string().optional(),
                     }),
                 },
@@ -134,7 +139,30 @@ app.openapi(signInRoute, async (c) => {
         headers: c.req.raw.headers,
         body: JSON.stringify(body),
     });
-    return auth.handler(req) as any;
+    const res = await auth.handler(req);
+    
+    if (res.ok) {
+        const clone = res.clone();
+        try {
+            const data = await clone.json();
+            if (data.user && !data.user.nickname) {
+                 const userRecord = await db.query.user.findFirst({
+                     where: eq(user.id, data.user.id),
+                 });
+                 if (userRecord) {
+                     data.user.nickname = userRecord.nickname;
+                     const newRes = c.json(data);
+                     res.headers.forEach((v, k) => {
+                         newRes.headers.set(k, v);
+                     });
+                     return newRes;
+                 }
+            }
+        } catch (e) {
+            // Ignore JSON parse errors or other errors
+        }
+    }
+    return res as any;
 });
 
 app.openapi(signUpRoute, async (c) => {
@@ -145,7 +173,30 @@ app.openapi(signUpRoute, async (c) => {
         headers: c.req.raw.headers,
         body: JSON.stringify(body),
     });
-    return auth.handler(req) as any;
+    const res = await auth.handler(req);
+
+    if (res.ok) {
+        const clone = res.clone();
+        try {
+            const data = await clone.json();
+            if (data.user && !data.user.nickname) {
+                 const userRecord = await db.query.user.findFirst({
+                     where: eq(user.id, data.user.id),
+                 });
+                 if (userRecord) {
+                     data.user.nickname = userRecord.nickname;
+                     const newRes = c.json(data);
+                     res.headers.forEach((v, k) => {
+                         newRes.headers.set(k, v);
+                     });
+                     return newRes;
+                 }
+            }
+        } catch (e) {
+            // Ignore JSON parse errors or other errors
+        }
+    }
+    return res as any;
 });
 
 // Catch-all route for other auth endpoints not explicitly documented (e.g., session, sign-out)
