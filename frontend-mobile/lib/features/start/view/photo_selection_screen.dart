@@ -9,7 +9,8 @@ import 'package:photo_manager/photo_manager.dart';
 
 class PhotoSelectionScreen extends StatefulWidget {
   final String projectName;
-  const PhotoSelectionScreen({super.key, required this.projectName});
+  final String? projectId; // 기존 프로젝트에 업로드 시 사용
+  const PhotoSelectionScreen({super.key, required this.projectName, this.projectId});
 
   @override
   State<PhotoSelectionScreen> createState() => _PhotoSelectionScreenState();
@@ -171,9 +172,14 @@ class _PhotoSelectionScreenState extends State<PhotoSelectionScreen> {
         child: _selectedAssets.isEmpty
             ? OutlinedButton(
                 onPressed: () async {
-                  final createdProject = await _projectService.createProject(widget.projectName);
+                  if (widget.projectId != null) {
+                    Navigator.of(context).pop();
+                    return;
+                  }
+                  final createdProject =
+                      await _projectService.createProject(widget.projectName);
+                  if (!mounted) return;
                   if (createdProject != null) {
-                    // Navigate to home or another screen
                     context.go('/start');
                   }
                 },
@@ -189,7 +195,7 @@ class _PhotoSelectionScreenState extends State<PhotoSelectionScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                child: const Text('건너뛰기'),
+                child: Text(widget.projectId != null ? '닫기' : '건너뛰기'),
               )
             : ElevatedButton(
                 onPressed: () async {
@@ -200,16 +206,26 @@ class _PhotoSelectionScreenState extends State<PhotoSelectionScreen> {
                       photoPaths.add(file.path);
                     }
                   }
-                  
-                  final createdProject = await _projectService.createProject(widget.projectName);
 
-                  if (createdProject != null) {
-                    if (photoPaths.isNotEmpty) {
-                      final message = await _projectService.uploadImages(createdProject.id, photoPaths);
-                      if (message != null) {
-                        print(message);
-                      }
+                  String? targetProjectId = widget.projectId;
+                  if (targetProjectId == null) {
+                    final createdProject =
+                        await _projectService.createProject(widget.projectName);
+                    targetProjectId = createdProject?.id;
+                  }
+                  if (!mounted) return;
+
+                  if (targetProjectId != null && photoPaths.isNotEmpty) {
+                    final message =
+                        await _projectService.uploadImages(targetProjectId, photoPaths);
+                    if (message != null) {
+                      print(message);
                     }
+                  }
+
+                  if (widget.projectId != null) {
+                    Navigator.of(context).pop();
+                  } else {
                     context.go('/start');
                   }
                 },

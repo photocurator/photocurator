@@ -20,6 +20,9 @@ import './date_screen.dart';
 import './grade_screen.dart';
 import './subject_screen.dart';
 import './setting_screen.dart';
+import 'package:photocurator/features/start/view/photo_selection_screen.dart';
+import 'package:photocurator/provider/current_project_provider.dart';
+import 'package:provider/provider.dart';
 
 // 홈 화면
 class HomeScreen extends StatelessWidget {
@@ -47,7 +50,20 @@ class HomeScreen extends StatelessWidget {
         menuItems: [
           DropdownItem(
             text: "이미지 업로드",
-            onTap: () => print("업로드 클릭"),
+            onTap: () async {
+              final pid = currentProjectProvider.currentProject?.id ?? projectId;
+              if (pid.isEmpty) return;
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => PhotoSelectionScreen(
+                          projectName: pjname,
+                          projectId: pid,
+                        )),
+              );
+              if (!context.mounted) return;
+              await context.read<CurrentProjectImagesProvider>().loadAllImages(pid);
+            },
           ),
           DropdownItem(
             text: "검색",

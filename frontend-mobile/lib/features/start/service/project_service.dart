@@ -85,21 +85,36 @@ class ProjectService {
 
   Future<String?> uploadImages(String projectId, List<String> photoPaths) async {
     try {
-      final formData = FormData();
-      for (var photoPath in photoPaths) {
+      if (photoPaths.isEmpty) {
+        throw Exception('No photos provided for upload');
+      }
+
+      final files = await Future.wait(photoPaths.map((photoPath) async {
         final fileName = path.basename(photoPath);
-        formData.files.add(MapEntry(
-          'files',
-          await MultipartFile.fromFile(photoPath, filename: fileName),
-        ));
+        return await MultipartFile.fromFile(photoPath, filename: fileName);
+      }));
+
+      final formData = FormData();
+      for (final file in files) {
+        // 서버가 files[] 배열을 기대하므로 키를 files[]로 명시
+        formData.files.add(MapEntry('files[]', file));
       }
 
       final response = await _dio.post(
         '${ProjectService.baseUrl}/projects/$projectId/images',
         data: formData,
+        options: Options(
+          contentType: 'multipart/form-data',
+        ),
       );
 
-      if (response.statusCode == 201) {
+      if (response.statusCode == 202) {
+        // 업로드 성공 시 프로젝트 분석 트리거
+        try {
+          await analyzeProject(projectId);
+        } catch (e) {
+          print('Failed to trigger project analyze: $e');
+        }
         return response.data['message'];
       } else {
         print('Failed to upload images: ${response.statusCode}');
@@ -124,6 +139,19 @@ class ProjectService {
     } catch (e) {
       print('Error getting projects: $e');
       return [];
+    }
+  }
+
+  Future<bool> analyzeProject(String projectId, {String jobType = 'FULL_SCAN'}) async {
+    try {
+      final response = await _dio.post(
+        '${ProjectService.baseUrl}/projects/$projectId/analyze',
+        data: {'jobType': jobType},
+      );
+      return response.statusCode == 200 || response.statusCode == 202;
+    } catch (e) {
+      print('Error analyzing project $projectId: $e');
+      return false;
     }
   }
 
