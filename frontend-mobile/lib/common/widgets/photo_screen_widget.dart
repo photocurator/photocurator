@@ -22,6 +22,22 @@ abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T> {
   bool isSelecting = false;
   List<ImageItem> selectedImages = [];
 
+  Future<void> togglePick(ImageItem item, bool newValue) async {
+    final success = await ApiService().updateImageSelection(
+      imageId: item.id,
+      isPicked: newValue,
+      rating: item.rating,
+    );
+    if (!mounted) return;
+    if (success) {
+      context.read<CurrentProjectImagesProvider>().updatePickStatus(item.id, newValue);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('좋아요를 변경하지 못했습니다.')),
+      );
+    }
+  }
+
   void toggleSelection(ImageItem item) {
     setState(() {
       if (selectedImages.contains(item)) {
@@ -114,6 +130,7 @@ abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T> {
         selectedImages: selectedImages,
         onSelectToggle: toggleSelection,
         onLongPressItem: () => setState(() => isSelecting = true),
+        onTogglePick: togglePick,
       ),
 
         bottomSheet: isSelecting ? null : _buildBottomActionBar(),
@@ -145,6 +162,22 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T> {
 
   bool isSelecting = false;
   List<ImageItem> selectedImages = [];
+
+  Future<void> togglePick(ImageItem item, bool newValue) async {
+    final success = await ApiService().updateImageSelection(
+      imageId: item.id,
+      isPicked: newValue,
+      rating: item.rating,
+    );
+    if (!mounted) return;
+    if (success) {
+      context.read<CurrentProjectImagesProvider>().updatePickStatus(item.id, newValue);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('좋아요를 변경하지 못했습니다.')),
+      );
+    }
+  }
 
   void toggleSelection(ImageItem item) {
     setState(() {
@@ -238,6 +271,7 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T> {
         selectedImages: selectedImages,
         onSelectToggle: toggleSelection,
         onLongPressItem: () => setState(() => isSelecting = true),
+        onTogglePick: togglePick,
       ),
 
         bottomSheet: isSelecting

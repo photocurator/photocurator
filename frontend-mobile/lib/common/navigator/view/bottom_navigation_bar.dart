@@ -3,7 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:photocurator/common/theme/colors.dart';
 
-//하단 기본 네비게이션 바 ui
+
 class ScaffoldWithNestedNavigation extends StatelessWidget {
   const ScaffoldWithNestedNavigation({
     super.key,
@@ -41,9 +41,9 @@ class _FancyBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final navHeight = screenWidth * (60 / 375); // 375:60 비율 유지
-    const inactive = AppColors.lgADB5BD; // 비활성 텍스트/아이콘
+    // Use fixed height to avoid shrinking/overflow across devices
+    const double navHeight = 64;
+    const inactive = AppColors.lgADB5BD; // 비활???�스???�이�?
 
     return SizedBox(
       width: double.infinity,
@@ -71,11 +71,11 @@ class _FancyBottomNav extends StatelessWidget {
                 onTap: () => onTap(1),
                 child: Image.asset(
                   'assets/icons/navigator/logo.png',
-                  width: navHeight * 0.35,        // 60 기준일 때 38이라서 대략 0.63
+                  width: navHeight * 0.35,        // 60 기�?????38?�라???�??0.63
                   height: navHeight * 0.35,
                   fit: BoxFit.contain,
-                  // 로고가 흰색이면 안 보일 수 있으니,
-                  // 필요하면 colorFilter로 색 덮어쓰기 가능
+                  // 로고가 ?�색?�면 ??보일 ???�으??
+                  // ?�요?�면 colorFilter�?????��?�기 가??
                   // colorFilter: const ColorFilter.mode(Colors.black, BlendMode.srcIn),
                 ),
               ),
@@ -95,7 +95,7 @@ class _FancyBottomNav extends StatelessWidget {
   }
 }
 
-/// 좌/우 텍스트+아이콘
+/// �????�스???�이�?
 class _NavItem extends StatelessWidget {
   final String asset;
   final String label;
@@ -117,7 +117,7 @@ class _NavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = selected ? activeColor : inactiveColor;
 
-    // 폰트 스타일 통일 (NotoSans 기준 예시)
+    // ?�트 ?��????�일 (NotoSans 기�? ?�시)
     const selectedTextStyle = TextStyle(
       fontFamily: 'NotoSansRegular',
       fontSize: 10,
@@ -195,3 +195,4 @@ class _CenterCircleItem extends StatelessWidget {
     );
   }
 }
+

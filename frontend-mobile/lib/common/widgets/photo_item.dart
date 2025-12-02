@@ -37,9 +37,9 @@ class QualityScore {
 
 class ImageItem {
   final String id;
-  bool isRejected;
+  final bool isRejected;
   bool isPicked;
-  int rating;
+  final int rating;
   final double? score;
   final DateTime createdAt;
   final QualityScore qualityScore;
@@ -55,6 +55,27 @@ class ImageItem {
     this.objectTags = const [],
     QualityScore? qualityScore,
   }) : qualityScore = qualityScore ?? QualityScore();
+
+  ImageItem copyWith({
+    bool? isRejected,
+    bool? isPicked,
+    int? rating,
+    double? score,
+    DateTime? createdAt,
+    QualityScore? qualityScore,
+    List<ObjectTag>? objectTags,
+  }) {
+    return ImageItem(
+      id: id,
+      isRejected: isRejected ?? this.isRejected,
+      isPicked: isPicked ?? this.isPicked,
+      rating: rating ?? this.rating,
+      score: score ?? this.score,
+      createdAt: createdAt ?? this.createdAt,
+      objectTags: objectTags ?? this.objectTags,
+      qualityScore: qualityScore ?? this.qualityScore,
+    );
+  }
 
   factory ImageItem.fromJson(Map<String, dynamic> json) {
     // 안전하게 Map<String, dynamic>으로 변환
@@ -90,6 +111,13 @@ class ImageItem {
       if (value is num) return value.toDouble();
       if (value is String) return double.tryParse(value);
       return null;
+    }
+
+    int parseRating(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      if (value is String) return int.tryParse(value) ?? 0;
+      return 0;
     }
 
     return ImageItem(
@@ -165,7 +193,25 @@ class ApiService {
     }
   }
 
-  Future<dynamic> fetchImageDetails(String id) async {}
+  Future<bool> updateImageSelection({
+    required String imageId,
+    required bool isPicked,
+    int rating = 0,
+  }) async {
+    try {
+      final res = await _dio.put(
+        '/images/$imageId/selection',
+        data: {
+          'isPicked': isPicked,
+          'rating': rating,
+        },
+      );
+      return res.statusCode != null && res.statusCode! < 300;
+    } catch (e) {
+      debugPrint('Error updating selection: $e');
+      return false;
+    }
+  }
 }
 
 // image_item_widget.dart
@@ -177,6 +223,7 @@ class ImageItemWidget extends StatelessWidget {
   final bool isSelected;
   final VoidCallback? onSelectToggle;
   final VoidCallback? onLongPress;
+  final void Function(bool newValue)? onTogglePick;
   final double size;
 
   const ImageItemWidget({
@@ -188,6 +235,7 @@ class ImageItemWidget extends StatelessWidget {
     this.isSelected = false,
     this.onSelectToggle,
     this.onLongPress,
+    this.onTogglePick,
     required this.size,
   });
 
@@ -273,6 +321,21 @@ class ImageItemWidget extends StatelessWidget {
                   ),
                 ),
               ),
+            Positioned(
+              right: 6,
+              bottom: 6,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => onTogglePick?.call(!item.isPicked),
+                child: SvgPicture.asset(
+                  item.isPicked
+                      ? 'assets/icons/button/filled_heart.svg'
+                      : 'assets/icons/button/empty_heart_gray.svg',
+                  width: 20,
+                  height: 20,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -288,6 +351,7 @@ class PhotoGrid extends StatelessWidget {
   final List<ImageItem> selectedImages;
   final void Function(ImageItem) onSelectToggle;
   final void Function()? onLongPressItem;
+  final void Function(ImageItem item, bool newValue)? onTogglePick;
 
   const PhotoGrid({
     super.key,
@@ -296,6 +360,7 @@ class PhotoGrid extends StatelessWidget {
     this.selectedImages = const [],
     required this.onSelectToggle,
     this.onLongPressItem,
+    this.onTogglePick,
   });
 
   @override
@@ -324,6 +389,9 @@ class PhotoGrid extends StatelessWidget {
             isSelected: selectedImages.contains(item),
             onSelectToggle: () => onSelectToggle(item),
             onLongPress: onLongPressItem,
+            onTogglePick: onTogglePick == null
+                ? null
+                : (newValue) => onTogglePick!(item, newValue),
             size: itemSize,
           ),
         );

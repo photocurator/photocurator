@@ -133,6 +133,7 @@ class _GradeScreenState extends BasePhotoContent<GradeScreen> {
               selectedImages: selectedImages,
               onSelectToggle: toggleSelection,
               onLongPressItem: () => setState(() => isSelecting = true),
+              onTogglePick: togglePick,
             ),
           ),
         ],

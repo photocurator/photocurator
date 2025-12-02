@@ -3,9 +3,11 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:photocurator/common/widgets/photo_item.dart';
 import 'package:photocurator/common/theme/colors.dart';
 import 'package:photocurator/features/search/service/search_service.dart';
 import 'package:photocurator/features/start/service/project_service.dart';
+import 'package:photocurator/features/home/detail_view/photo_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -164,6 +166,57 @@ class _SearchScreenState extends State<SearchScreen> {
         _selectedItemIndices.add(index);
       }
     });
+  }
+
+  Future<void> _togglePick(int index) async {
+    final item = _searchResults[index];
+    final newValue = !item.isPicked;
+    final updated = await _searchService.updateImageSelection(
+      imageId: item.id,
+      isPicked: newValue,
+      rating: item.rating,
+    );
+    if (!mounted) return;
+    if (updated) {
+      setState(() {
+        _searchResults[index] = SearchResultImage(
+          id: item.id,
+          url: item.url,
+          thumbnailUrl: item.thumbnailUrl,
+          qualityScore: item.qualityScore,
+          createdAt: item.createdAt,
+          isPicked: newValue,
+          rating: item.rating,
+        );
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('좋아요 상태를 변경하지 못했습니다.')),
+      );
+    }
+  }
+
+  void _openDetail(int index) {
+    final images = _searchResults
+        .map(
+          (result) => ImageItem(
+            id: result.id,
+            createdAt: result.createdAt ?? DateTime.now(),
+            qualityScore: result.qualityScore,
+            isPicked: result.isPicked,
+            rating: result.rating,
+          ),
+        )
+        .toList();
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PhotoScreen(
+          images: images,
+          initialIndex: index,
+        ),
+      ),
+    );
   }
 
   void _toggleSelectAllItems() {
@@ -438,7 +491,7 @@ class _SearchScreenState extends State<SearchScreen> {
             if (_isSelectionMode) {
               _toggleItemSelection(index);
             } else {
-              // TODO: 상세 보기 이동
+              _openDetail(index);
             }
           },
           child: FutureBuilder<Uint8List?>(
@@ -468,7 +521,22 @@ class _SearchScreenState extends State<SearchScreen> {
                       height: 14,
                     ),
                   )
-                ]
+                ],
+                Positioned(
+                  right: 6,
+                  bottom: 6,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => _togglePick(index),
+                    child: SvgPicture.asset(
+                      _searchResults[index].isPicked
+                          ? 'assets/icons/button/filled_heart.svg'
+                          : 'assets/icons/button/empty_heart_gray.svg',
+                      width: 20,
+                      height: 20,
+                    ),
+                  ),
+                ),
               ]);
             },
           ),

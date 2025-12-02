@@ -208,8 +208,8 @@ class _SubjectScreenState extends BasePhotoContent<SubjectScreen> {
               isSelecting: isSelecting,
               selectedImages: selectedImages,
               onSelectToggle: toggleSelection,
-              onLongPressItem: () =>
-                  setState(() => isSelecting = true),
+              onLongPressItem: () => setState(() => isSelecting = true),
+              onTogglePick: togglePick,
             ),
           ),
         ],

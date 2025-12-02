@@ -2,16 +2,25 @@ import 'package:dio/dio.dart';
 import 'package:flutter_better_auth/flutter_better_auth.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:typed_data';
+import 'package:photocurator/common/widgets/photo_item.dart';
 
 class SearchResultImage {
   final String id;
   final String url;
   final String thumbnailUrl;
+  final QualityScore qualityScore;
+  final DateTime? createdAt;
+  final bool isPicked;
+  final int rating;
 
   SearchResultImage({
     required this.id,
     required this.url,
     required this.thumbnailUrl,
+    required this.qualityScore,
+    this.createdAt,
+    this.isPicked = false,
+    this.rating = 0,
   });
 
   factory SearchResultImage.fromJson(Map<String, dynamic> json) {
@@ -27,11 +36,24 @@ class SearchResultImage {
 
     final String imageId = imageJson['id'];
     final String imageFileUrl = '$baseUrl/images/$imageId/file';
+    final qualityScore = QualityScore.fromJson(json['qualityScore'] as Map<String, dynamic>?);
+    final createdAtStr = imageJson['createdAt'] as String?;
+    final selectionJson = json['imageSelection'] as Map<String, dynamic>? ?? {};
+    int parseRating(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      if (value is String) return int.tryParse(value) ?? 0;
+      return 0;
+    }
 
     return SearchResultImage(
       id: imageId,
       url: imageFileUrl,
       thumbnailUrl: imageFileUrl,
+      qualityScore: qualityScore,
+      createdAt: createdAtStr != null ? DateTime.tryParse(createdAtStr) : null,
+      isPicked: selectionJson['isPicked'] ?? false,
+      rating: parseRating(selectionJson['rating']),
     );
   }
 }
@@ -99,5 +121,25 @@ class SearchService {
       print('Error fetching image bytes: $e');
     }
     return null;
+  }
+
+  Future<bool> updateImageSelection({
+    required String imageId,
+    required bool isPicked,
+    int rating = 0,
+  }) async {
+    try {
+      final response = await _dio.put(
+        '$baseUrl/images/$imageId/selection',
+        data: {
+          'isPicked': isPicked,
+          'rating': rating,
+        },
+      );
+      return response.statusCode != null && response.statusCode! < 300;
+    } catch (e) {
+      print('Error updating image selection: $e');
+      return false;
+    }
   }
 }

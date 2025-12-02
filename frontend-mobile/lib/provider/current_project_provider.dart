@@ -24,6 +24,7 @@ class CurrentProjectProvider extends ChangeNotifier {
     notifyListeners();
   }
 }
+
 class CurrentProjectImagesProvider extends ChangeNotifier {
   // 이미지
   List<ImageItem> allImages = [];
@@ -60,7 +61,9 @@ class CurrentProjectImagesProvider extends ChangeNotifier {
 
       // 4. All 이미지에서 숨긴 사진 + 휴지통 제거
       final trashIds = trash.map((e) => e.id).toList();
-      allImages = all.where((img) => !img.isRejected && !trashIds.contains(img.id)).toList();
+      allImages =
+          all.where((img) => !img.isRejected && !trashIds.contains(img.id))
+              .toList();
 
       // 5. Trash, BestShot, Picked 리스트
       trashImages = trash;
@@ -94,37 +97,59 @@ class CurrentProjectImagesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updatePickStatus(String imageId, bool isPicked) {
+    ImageItem mapper(ImageItem img) =>
+        img.id == imageId ? img.copyWith(isPicked: isPicked) : img;
+
+    allImages = allImages.map(mapper).toList();
+    hiddenImages = hiddenImages.map(mapper).toList();
+    trashImages = trashImages.map(mapper).toList();
+    bestShotImages = bestShotImages.map(mapper).toList();
+    pickedImages = allImages.where((img) => img.isPicked).toList();
+    notifyListeners();
+  }
+
+
   /// 그룹별 데이터만 따로 로드 가능 (대표 이미지 미리 다운로드 포함)
+// [수정 1] 괄호 위치 수정: 이 메서드가 클래스 안으로 들어와야 합니다.
+  /// 그룹별 데이터만 따로 로드 가능 (대표 이미지 병렬 다운로드 적용)
   Future<void> loadProjectGroupsWithImages(String projectId) async {
     try {
-      isLoading = true;
-      notifyListeners();
+      // (이미 상위에서 isLoading을 켰다면 중복 호출 주의)
+      // isLoading = true;
+      // notifyListeners();
 
-      projectGroups = await GroupApiService().fetchProjectGroups(projectId: projectId);
+      projectGroups =
+      await GroupApiService().fetchProjectGroups(projectId: projectId);
 
       final dio = FlutterBetterAuth.dioClient;
+      final baseUrl = dotenv.env['API_BASE_URL'];
 
-      for (var group in projectGroups) {
+      // [수정 2] Future.wait를 사용하여 병렬 다운로드 (속도 개선)
+      await Future.wait(projectGroups.map((group) async {
         try {
-          final res = await dio.get(
-            '${dotenv.env['API_BASE_URL']}/images/${group.representativeImageId}/file',
-            options: Options(responseType: ResponseType.bytes),
-          );
-          group.imageBytes = res.data;
+          if (group.representativeImageId.isNotEmpty) {
+            final res = await dio.get(
+              '$baseUrl/images/${group.representativeImageId}/file',
+              options: Options(responseType: ResponseType.bytes),
+            );
+            group.imageBytes = res.data;
+          }
         } catch (e) {
-          debugPrint('그룹 이미지 다운로드 실패: ${group.id}, $e');
+          debugPrint('그룹 이미지(${group.id}) 다운로드 실패: $e');
           group.imageBytes = null;
         }
-      }
+      }));
     } catch (e) {
       debugPrint('그룹 로드 실패: $e');
       projectGroups = [];
     } finally {
-      isLoading = false;
-      notifyListeners();
+      // isLoading = false;
+      notifyListeners(); // 데이터 변경 알림
     }
   }
 }
+
 
 
 

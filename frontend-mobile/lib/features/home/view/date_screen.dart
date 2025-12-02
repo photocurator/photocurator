@@ -178,6 +178,7 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
               onSelectToggle: toggleSelection,
               onLongPressItem: () =>
                   setState(() => isSelecting = true),
+              onTogglePick: togglePick,
             ),
           ),
         ],
