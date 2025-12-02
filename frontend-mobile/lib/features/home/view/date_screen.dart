@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 
 import '../../../provider/current_project_provider.dart';
 
+
 class DateScreen extends StatefulWidget {
   const DateScreen({Key? key}) : super(key: key);
 
@@ -30,34 +31,62 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
   String? get groupBy => "date";
 
   int selectedTabIndex = 0;
-  List<String> dateLabels = ["전체"]; // 초기값
+  List<String> dateLabels = ["전체"];
+  List<String> normalizedDates = []; // 내부 필터용
 
+  // =============================
+  // 날짜 탭 생성 (중복 제거 버전)
+  // =============================
   void _prepareDateLabels() {
     final imageProvider = context.read<CurrentProjectImagesProvider>();
-    final images = imageProvider.allImages; // viewType이 ALL이라면 allImages
-    dateLabels = ["전체"];
+    final images = imageProvider.allImages;
 
-    final uniqueDates = images
-        .map((img) => img.createdAt)
-        .toSet()
-        .toList()
+    dateLabels = ["전체"];
+    normalizedDates = [];
+
+    // yyyy-MM-dd 로 날짜를 정규화 → Set으로 중복제거
+    final dateKeySet = images.map((img) {
+      final d = img.createdAt;
+      return "${d.year}-${d.month}-${d.day}";
+    }).toSet().toList()
       ..sort();
 
-    dateLabels.addAll(uniqueDates.map((d) => "${d.month}월 ${d.day}일"));
+    normalizedDates = dateKeySet;
+
+    // UI에서는 "12월 1일" 형태로 표시
+    dateLabels.addAll(dateKeySet.map((dateKey) {
+      final parts = dateKey.split("-");
+      final month = int.parse(parts[1]);
+      final day = int.parse(parts[2]);
+      return "$month월 $day일";
+    }));
   }
 
+  // =============================
+  // 현재 탭에서 보여줄 이미지 필터링
+  // =============================
   List<ImageItem> get currentImages {
     final imageProvider = context.read<CurrentProjectImagesProvider>();
-    final images = imageProvider.allImages; // viewType이 ALL이라면 allImages
+    final images = imageProvider.allImages;
+
+    // "전체" 탭
     if (selectedTabIndex == 0) return images;
 
-    final label = dateLabels[selectedTabIndex];
+    // 날짜 탭 → normalizedDates 기준으로 필터링
+    final normalizedKey = normalizedDates[selectedTabIndex - 1];
+    final parts = normalizedKey.split("-");
+    final month = int.parse(parts[1]);
+    final day = int.parse(parts[2]);
+
     return images.where((img) {
-      final date = img.createdAt;
-      return label == "${date.month}월 ${date.day}일";
+      final d = img.createdAt;
+      return d.month == month && d.day == day;
     }).toList();
   }
 
+  // =============================
+  // Dependency 변경 시 날짜 라벨 업데이트
+  // =============================
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -65,7 +94,9 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
     final imageProvider = context.watch<CurrentProjectImagesProvider>();
     if (!imageProvider.isLoading) {
       _prepareDateLabels();
-      if (selectedTabIndex >= dateLabels.length) selectedTabIndex = 0;
+      if (selectedTabIndex >= dateLabels.length) {
+        selectedTabIndex = 0;
+      }
     }
   }
 
@@ -73,6 +104,9 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
     setState(() => selectedTabIndex = index);
   }
 
+  // =============================
+  // UI
+  // =============================
   @override
   Widget build(BuildContext context) {
     final deviceWidth = MediaQuery.of(context).size.width;
@@ -83,12 +117,15 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
       backgroundColor: AppColors.wh1,
       body: Column(
         children: [
+          // 날짜 선택 탭
           SelectableBar(
             items: dateLabels,
             selectedIndex: selectedTabIndex,
             onItemSelected: _onTabSelected,
             height: deviceWidth * (44 / 375),
           ),
+
+          // 상단 앱바 (정렬/선택 모드)
           SizedBox(
             height: deviceWidth * (40 / 375),
             child: isSelecting
@@ -121,6 +158,8 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
               onSortTime: () => setState(() => sortType = "time"),
             ),
           ),
+
+          // 본문 영역
           Expanded(
             child: isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -146,6 +185,7 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
     );
   }
 }
+
 
 
 /*
