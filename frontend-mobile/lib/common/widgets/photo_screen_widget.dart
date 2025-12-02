@@ -1,9 +1,11 @@
 // photo_screen_widget.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
 import '../../../provider/current_project_provider.dart';
 import './photo_item.dart';
+import './action_bar.dart';
 import 'package:photocurator/common/bar/view/detail_app_bar.dart';
 import 'package:photocurator/common/bar/view/selection_bar.dart';
 import 'package:photocurator/common/theme/colors.dart';
@@ -12,7 +14,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_better_auth/flutter_better_auth.dart';
 import 'package:photocurator/provider/current_project_provider.dart';
-import 'photo_item.dart';
 
 abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T> {
   String get screenTitle;
@@ -33,6 +34,37 @@ abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T> {
 
   void selectAll(List<ImageItem> images) => setState(() => selectedImages = List.from(images));
   void cancelSelection() => setState(() => isSelecting = false);
+
+  // --- 추가: 하단 액션바 ---
+  Widget _buildBottomActionBar() {
+    return Container(
+      height: 60,
+      decoration: const BoxDecoration(
+          color: AppColors.wh1,
+          border: Border(top: BorderSide(color: AppColors.lgE9ECEF))),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildActionButton('좋아요', 'assets/icons/button/empty_heart_gray.svg'),
+          _buildActionButton('복사', 'assets/icons/button/duplicate_gray.svg'),
+          _buildActionButton('다운로드', 'assets/icons/button/arrow_collapse_down_gray.svg'),
+          _buildActionButton('삭제', 'assets/icons/button/empty_bin_gray.svg'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton(String label, String iconPath) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        SvgPicture.asset(iconPath, width: 20, height: 20),
+        const SizedBox(height: 4),
+        Text(label, style: const TextStyle(fontSize: 10, color: AppColors.dg495057)),
+      ],
+    );
+  }
+  // --- 여기까지 액션바 추가 ---
 
   @override
   Widget build(BuildContext context) {
@@ -83,6 +115,8 @@ abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T> {
         onSelectToggle: toggleSelection,
         onLongPressItem: () => setState(() => isSelecting = true),
       ),
+
+        bottomSheet: isSelecting ? null : _buildBottomActionBar(),
     );
   }
 
@@ -124,6 +158,38 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T> {
 
   void selectAll(List<ImageItem> images) => setState(() => selectedImages = List.from(images));
   void cancelSelection() => setState(() => isSelecting = false);
+
+  // --- 추가: 하단 액션바 ---
+  Widget _buildBottomActionBar() {
+    return Container(
+      height: 60,
+      decoration: const BoxDecoration(
+          color: AppColors.wh1,
+          border: Border(top: BorderSide(color: AppColors.lgE9ECEF))),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildActionButton('좋아요', 'assets/icons/button/empty_heart_gray.svg'),
+          _buildActionButton('복사', 'assets/icons/button/duplicate_gray.svg'),
+          _buildActionButton('비교 뷰', 'assets/icons/button/full_screen_gray.svg'),
+          _buildActionButton('다운로드', 'assets/icons/button/arrow_collapse_down_gray.svg'),
+          _buildActionButton('삭제', 'assets/icons/button/empty_bin_gray.svg'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton(String label, String iconPath) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        SvgPicture.asset(iconPath, width: 20, height: 20),
+        const SizedBox(height: 4),
+        Text(label, style: const TextStyle(fontSize: 10, color: AppColors.dg495057)),
+      ],
+    );
+  }
+  // --- 여기까지 액션바 추가 ---
 
   @override
   Widget build(BuildContext context) {
@@ -173,6 +239,16 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T> {
         onSelectToggle: toggleSelection,
         onLongPressItem: () => setState(() => isSelecting = true),
       ),
+
+        bottomSheet: isSelecting
+            ? null
+            : Container(
+          margin: EdgeInsets.only(bottom: deviceWidth * (60 / 375)),
+          child: ActionBottomBar(
+            selectedImages: selectedImages,
+          ),
+        )
+
     );
   }
 
@@ -204,90 +280,3 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T> {
 
 
 
-
-typedef FilterFunction = List<ImageItem> Function(List<ImageItem>);
-typedef GroupFunction = Map<String, List<ImageItem>> Function(List<ImageItem>);
-
-class BaseImageState extends StatefulWidget {
-  final Future<List<ImageItem>> Function() loadImages;
-  final FilterFunction? filterFunction;
-  final GroupFunction? groupFunction;
-  final Widget Function(List<ImageItem> images, bool isSelecting, List<ImageItem> selectedImages, Function(ImageItem) toggleSelection) gridBuilder;
-
-  const BaseImageState({
-    super.key,
-    required this.loadImages,
-    required this.gridBuilder,
-    this.filterFunction,
-    this.groupFunction,
-  });
-
-  @override
-  State<BaseImageState> createState() => _BaseImageStateState();
-}
-
-class _BaseImageStateState extends State<BaseImageState> {
-  bool isLoading = true;
-  bool isSelecting = false;
-  List<ImageItem> images = [];
-  List<ImageItem> selectedImages = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() => isLoading = true);
-    images = await widget.loadImages();
-    setState(() => isLoading = false);
-  }
-
-  void updateImage(ImageItem updated) {
-    final index = images.indexWhere((img) => img.id == updated.id);
-    if (index != -1) {
-      setState(() => images[index] = updated);
-    }
-  }
-
-  void toggleSelection(ImageItem item) {
-    setState(() {
-      if (selectedImages.contains(item)) {
-        selectedImages.remove(item);
-      } else {
-        selectedImages.add(item);
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (isLoading) return const Center(child: CircularProgressIndicator());
-
-    if (widget.groupFunction != null) {
-      final groups = widget.groupFunction!(images);
-      return DefaultTabController(
-        length: groups.keys.length,
-        child: Column(
-          children: [
-            TabBar(
-              isScrollable: true,
-              tabs: groups.keys.map((k) => Tab(text: k)).toList(),
-            ),
-            Expanded(
-              child: TabBarView(
-                children: groups.values.map((imgs) {
-                  return widget.gridBuilder(imgs, isSelecting, selectedImages, toggleSelection);
-                }).toList(),
-              ),
-            ),
-          ],
-        ),
-      );
-    } else {
-      final displayImages = widget.filterFunction != null ? widget.filterFunction!(images) : images;
-      return widget.gridBuilder(displayImages, isSelecting, selectedImages, toggleSelection);
-    }
-  }
-}

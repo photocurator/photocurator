@@ -37,8 +37,9 @@ class QualityScore {
 
 class ImageItem {
   final String id;
-  final bool isRejected;
-  final int rating;
+  bool isRejected;
+  bool isPicked;
+  int rating;
   final double? score;
   final DateTime createdAt;
   final QualityScore qualityScore;
@@ -47,6 +48,7 @@ class ImageItem {
   ImageItem({
     required this.id,
     this.isRejected = false,
+    this.isPicked = false,
     this.rating = 0,
     this.score,
     required this.createdAt,
@@ -93,6 +95,7 @@ class ImageItem {
     return ImageItem(
       id: json['image']?['id'] ?? '',
       isRejected: json['imageSelection']?['isRejected'] ?? false,
+      isPicked: json['imageSelection']?['isPicked'] ?? false,
       rating: json['imageSelection']?['rating'] ?? 0,
       score: parseScore(musiqScoreRaw),
       createdAt: parseDate(json['image']?['createdAt']) ?? DateTime.now(),
@@ -161,6 +164,8 @@ class ApiService {
       return [];
     }
   }
+
+  Future<dynamic> fetchImageDetails(String id) async {}
 }
 
 // image_item_widget.dart
@@ -321,6 +326,77 @@ class PhotoGrid extends StatelessWidget {
             onLongPress: onLongPressItem,
             size: itemSize,
           ),
+        );
+      },
+    );
+  }
+}
+
+
+class ShimmerPlaceholderRow extends StatefulWidget {
+  const ShimmerPlaceholderRow({super.key});
+
+  @override
+  State<ShimmerPlaceholderRow> createState() => _ShimmerPlaceholderRowState();
+}
+
+class _ShimmerPlaceholderRowState extends State<ShimmerPlaceholderRow>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final deviceWidth = MediaQuery.of(context).size.width;
+    final crossAxisSpacing = 4.0;
+    final paddingHorizontal = 20.0;
+    final itemWidth = (deviceWidth - paddingHorizontal * 2 - crossAxisSpacing * 2) / 3;
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: crossAxisSpacing,
+        mainAxisSpacing: crossAxisSpacing,
+        childAspectRatio: 1, // 1:1 정사각형
+      ),
+      itemCount: 3, // 3열 1행
+      itemBuilder: (context, index) {
+        return AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            return Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                gradient: LinearGradient(
+                  begin: Alignment(-1 + _controller.value * 2, -1),
+                  end: Alignment(1 + _controller.value * 2, 1),
+                  colors: [
+                    Colors.grey.shade300,
+                    Colors.grey.shade200,
+                    Colors.grey.shade300,
+                  ],
+                  stops: const [0.1, 0.5, 0.9],
+                ),
+              ),
+            );
+          },
         );
       },
     );

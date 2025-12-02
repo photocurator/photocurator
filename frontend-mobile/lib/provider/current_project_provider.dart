@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_better_auth/core/flutter_better_auth.dart';
@@ -22,7 +24,6 @@ class CurrentProjectProvider extends ChangeNotifier {
     notifyListeners();
   }
 }
-
 class CurrentProjectImagesProvider extends ChangeNotifier {
   // 이미지
   List<ImageItem> allImages = [];
@@ -72,12 +73,10 @@ class CurrentProjectImagesProvider extends ChangeNotifier {
         viewType: 'PICKED',
       );
 
-      // 6. 그룹 정보 조회
-      projectGroups = await GroupApiService().fetchProjectGroups(projectId: projectId);
-
+      // 6. 그룹 정보 및 대표 이미지 미리 다운로드
+      await loadProjectGroupsWithImages(projectId);
     } catch (e) {
-      print('이미지 또는 그룹 로드 실패: $e');
-      // 필요하면 error 상태 처리 가능
+      debugPrint('이미지 또는 그룹 로드 실패: $e');
     }
 
     isLoading = false;
@@ -95,13 +94,34 @@ class CurrentProjectImagesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 그룹별 데이터만 따로 로드 가능
-  Future<void> loadProjectGroups(String projectId) async {
+  /// 그룹별 데이터만 따로 로드 가능 (대표 이미지 미리 다운로드 포함)
+  Future<void> loadProjectGroupsWithImages(String projectId) async {
     try {
-      projectGroups = await GroupApiService().fetchProjectGroups(projectId: projectId);
+      isLoading = true;
       notifyListeners();
+
+      projectGroups = await GroupApiService().fetchProjectGroups(projectId: projectId);
+
+      final dio = FlutterBetterAuth.dioClient;
+
+      for (var group in projectGroups) {
+        try {
+          final res = await dio.get(
+            '${dotenv.env['API_BASE_URL']}/images/${group.representativeImageId}/file',
+            options: Options(responseType: ResponseType.bytes),
+          );
+          group.imageBytes = res.data;
+        } catch (e) {
+          debugPrint('그룹 이미지 다운로드 실패: ${group.id}, $e');
+          group.imageBytes = null;
+        }
+      }
     } catch (e) {
-      print('그룹 로드 실패: $e');
+      debugPrint('그룹 로드 실패: $e');
+      projectGroups = [];
+    } finally {
+      isLoading = false;
+      notifyListeners();
     }
   }
 }
@@ -120,6 +140,8 @@ class GroupItem {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  Uint8List? imageBytes; // 여기 추가
+
   GroupItem({
     required this.id,
     required this.projectId,
@@ -131,6 +153,7 @@ class GroupItem {
     required this.memberCount,
     required this.createdAt,
     required this.updatedAt,
+    this.imageBytes,
   });
 
   factory GroupItem.fromJson(Map<String, dynamic> json) {
@@ -148,6 +171,7 @@ class GroupItem {
     );
   }
 }
+
 
 class GroupApiService {
   late final Dio _dio;
