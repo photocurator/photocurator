@@ -5,8 +5,8 @@
 import { OpenAPIHono, createRoute } from '@hono/zod-openapi';
 import { z } from 'zod';
 import { db } from '../db';
-import { shootingPattern } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { shootingPattern, user as userTable } from '../db/schema';
+import { eq, getTableColumns } from 'drizzle-orm';
 import { AuthType } from '../lib/auth';
 
 type Variables = {
@@ -25,6 +25,8 @@ const ShootingPatternSchema = z.object({
   mostCommonAperture: z.string().nullable(),
   mostCommonFocalLength: z.string().nullable(),
   totalPhotosAnalyzed: z.number(),
+  nickname: z.string().nullable().optional(),
+  email: z.string().nullable().optional(),
   lastAnalyzedAt: z.iso.datetime().nullable(),
   createdAt: z.iso.datetime(),
 });
@@ -74,15 +76,25 @@ app.openapi(getStatisticsRoute, async (c) => {
   }
 
   const stats = await db
-    .select()
+    .select({
+      ...getTableColumns(shootingPattern),
+      nickname: userTable.nickname,
+      email: userTable.email,
+    })
     .from(shootingPattern)
+    .leftJoin(userTable, eq(shootingPattern.userId, userTable.id))
     .where(eq(shootingPattern.userId, user.id));
 
   if (stats.length === 0) {
     return c.json({ error: 'No statistics found' }, 404);
   }
 
-  return c.json(stats[0]);
+  const stat = stats[0];
+  return c.json({
+    ...stat,
+    createdAt: stat.createdAt.toISOString(),
+    lastAnalyzedAt: stat.lastAnalyzedAt?.toISOString() ?? null,
+  }) as any;
 });
 
 const calculateStatisticsRoute = createRoute({
