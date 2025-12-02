@@ -85,18 +85,40 @@ class GpsGroupingTask(ImageProcessingTask):
             lat_delta = 0.1
             lon_delta = 0.1
 
-            cur.execute(
-                """
+            min_lat = lat1 - lat_delta
+            max_lat = lat1 + lat_delta
+            min_lon = lon1 - lon_delta
+            max_lon = lon1 + lon_delta
+
+            if min_lon < -180 or max_lon > 180:
+                # Handle date line wrapping
+                if min_lon < -180:
+                    # e.g. min_lon = -181, range is [-181, -179] (assuming lon1 is near -180)
+                    # effectively covers [-180, max_lon] AND [360 + min_lon, 180]
+                    # Logic: 360 + (-181) = 179. Range [179, 180]
+                    lon_cond = "(g.longitude BETWEEN %s AND %s OR g.longitude BETWEEN %s AND %s)"
+                    params = (project_id, image_id, min_lat, max_lat, -180, max_lon, 360 + min_lon, 180)
+                else: # max_lon > 180
+                    # e.g. max_lon = 181, range is [179, 181] (assuming lon1 is near 180)
+                    # effectively covers [min_lon, 180] AND [-180, max_lon - 360]
+                    # Logic: 181 - 360 = -179. Range [-180, -179]
+                    lon_cond = "(g.longitude BETWEEN %s AND %s OR g.longitude BETWEEN %s AND %s)"
+                    params = (project_id, image_id, min_lat, max_lat, min_lon, 180, -180, max_lon - 360)
+            else:
+                # Standard case
+                lon_cond = "g.longitude BETWEEN %s AND %s"
+                params = (project_id, image_id, min_lat, max_lat, min_lon, max_lon)
+
+            query = f"""
                 SELECT i.id, g.latitude, g.longitude
                 FROM image i
                 JOIN image_gps g ON i.id = g.image_id
                 WHERE i.project_id = %s
                   AND i.id != %s
                   AND g.latitude BETWEEN %s AND %s
-                  AND g.longitude BETWEEN %s AND %s
-                """,
-                (project_id, image_id, lat1 - lat_delta, lat1 + lat_delta, lon1 - lon_delta, lon1 + lon_delta)
-            )
+                  AND {lon_cond}
+            """
+            cur.execute(query, params)
             candidates = cur.fetchall()
 
             matching_image_ids = []
