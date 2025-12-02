@@ -1,9 +1,10 @@
 """This module defines the FastAPI server for enqueuing and monitoring Celery tasks."""
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 from pydantic import BaseModel
 from celery.result import AsyncResult
 from worker import process_image
 from src.db import get_db_connection, release_db_connection
+from src.statistics import calculate_user_statistics
 import uuid
 
 app = FastAPI()
@@ -28,6 +29,23 @@ class TaskStatus(BaseModel):
     task_id: str
     status: str
     result: dict | None = None
+
+class StatisticsRequest(BaseModel):
+    user_id: str
+
+@app.post("/statistics/", status_code=202)
+def calculate_statistics(stats_request: StatisticsRequest, background_tasks: BackgroundTasks):
+    """Calculates user statistics in the background.
+    
+    Args:
+        stats_request (StatisticsRequest): The request body containing the user ID.
+        background_tasks (BackgroundTasks): FastAPI background tasks handler.
+        
+    Returns:
+        dict: A message indicating the calculation has started.
+    """
+    background_tasks.add_task(calculate_user_statistics, stats_request.user_id)
+    return {"message": "Statistics calculation started"}
 
 @app.post("/batch-analyze")
 def batch_analyze(batch_request: BatchAnalyzeRequest):

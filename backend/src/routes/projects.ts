@@ -7,8 +7,8 @@ import { OpenAPIHono, createRoute, extendZodWithOpenApi } from '@hono/zod-openap
 import type { RouteHandler } from '@hono/zod-openapi';
 import { z } from 'zod';
 import { db } from '../db';
-import { project, image, qualityScore, imageSelection, objectTag, analysisJob, analysisJobItem } from '../db/schema';
-import { eq, and, gt, desc, inArray } from 'drizzle-orm';
+import { project, image, qualityScore, imageSelection, objectTag, analysisJob, analysisJobItem, imageGroup, imageGroupMembership } from '../db/schema';
+import { eq, and, gt, desc, inArray, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 import { mkdir, writeFile } from 'fs/promises';
 import { randomUUID } from 'crypto';
@@ -445,18 +445,21 @@ const uploadProjectImagesHandler: AppRouteHandler<typeof uploadProjectImagesRout
         const jobItemsToInsert: typeof analysisJobItem.$inferInsert[] = [];
         const batchRequestRequests: { image_id: string; task_name: string; job_item_id: string }[] = [];
 
+        const tasks = ['exif_analysis', 'similarity_grouping'];
         for (const imgId of uploadedImageIds) {
-            const jobItemId = randomUUID();
-            jobItemsToInsert.push({
-                id: jobItemId,
-                jobId: newJob.id,
-                imageId: imgId,
-            });
-            batchRequestRequests.push({
-                image_id: imgId,
-                task_name: 'exif_analysis',
-                job_item_id: jobItemId,
-            });
+            for (const task of tasks) {
+                const jobItemId = randomUUID();
+                jobItemsToInsert.push({
+                    id: jobItemId,
+                    jobId: newJob.id,
+                    imageId: imgId,
+                });
+                batchRequestRequests.push({
+                    image_id: imgId,
+                    task_name: task,
+                    job_item_id: jobItemId,
+                });
+            }
         }
 
         await db.insert(analysisJobItem).values(jobItemsToInsert);
@@ -773,6 +776,96 @@ app.openapi(getProjectDetectedObjectsRoute, async (c) => {
     .orderBy(objectTag.tagName);
 
   return c.json(detectedObjects.map(d => d.tagName), 200);
+});
+
+const ImageGroupSchema = z.object({
+  id: z.string(),
+  projectId: z.string(),
+  groupType: z.enum(['similar', 'burst', 'sequence', 'time_based', 'gps']),
+  representativeImageId: z.string().nullable(),
+  timeRangeStart: z.string().datetime().nullable(),
+  timeRangeEnd: z.string().datetime().nullable(),
+  similarityScore: z.string().nullable(),
+  memberCount: z.number(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+const getProjectGroupsRoute = createRoute({
+  method: 'get',
+  path: '/{projectId}/groups',
+  summary: 'Get image groups in a project',
+  description: 'Retrieves a list of image groups (clusters) for a specific project.',
+  request: {
+    params: z.object({
+      projectId: z.uuid(),
+    }),
+  },
+  responses: {
+    200: {
+      description: 'Successful response with a list of image groups.',
+      content: {
+        'application/json': {
+          schema: z.array(ImageGroupSchema),
+        },
+      },
+    },
+    401: {
+      description: 'Unauthorized access.',
+      content: {
+        'application/json': {
+          schema: ErrorSchema,
+        },
+      },
+    },
+  },
+});
+
+app.openapi(getProjectGroupsRoute, async (c) => {
+  const { projectId } = c.req.param();
+  const user = c.get('user');
+
+  if (!user) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  const projectCheck = await db
+    .select()
+    .from(project)
+    .where(and(eq(project.id, projectId), eq(project.userId, user.id)))
+    .limit(1);
+
+  if (projectCheck.length === 0) {
+    return c.json([], 200);
+  }
+
+  const groups = await db
+    .select({
+      id: imageGroup.id,
+      projectId: imageGroup.projectId,
+      groupType: imageGroup.groupType,
+      representativeImageId: imageGroup.representativeImageId,
+      timeRangeStart: imageGroup.timeRangeStart,
+      timeRangeEnd: imageGroup.timeRangeEnd,
+      similarityScore: imageGroup.similarityScore,
+      createdAt: imageGroup.createdAt,
+      updatedAt: imageGroup.updatedAt,
+      memberCount: sql<number>`count(${imageGroupMembership.id})::int`,
+    })
+    .from(imageGroup)
+    .leftJoin(imageGroupMembership, eq(imageGroupMembership.groupId, imageGroup.id))
+    .where(eq(imageGroup.projectId, projectId))
+    .groupBy(imageGroup.id);
+
+  const formattedGroups = groups.map((g) => ({
+    ...g,
+    timeRangeStart: g.timeRangeStart?.toISOString() ?? null,
+    timeRangeEnd: g.timeRangeEnd?.toISOString() ?? null,
+    createdAt: g.createdAt.toISOString(),
+    updatedAt: g.updatedAt.toISOString(),
+  }));
+
+  return c.json(formattedGroups, 200);
 });
 
 export default app;

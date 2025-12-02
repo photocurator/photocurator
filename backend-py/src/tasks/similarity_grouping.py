@@ -40,21 +40,15 @@ class SimilarityGroupingTask(ImageProcessingTask):
 
             # 1. Fetch image details
             cur.execute(
-                "SELECT storage_path, project_id, capture_datetime, perceptual_hash FROM image WHERE id = %s",
+                "SELECT storage_path, project_id, capture_datetime, perceptual_hash, upload_datetime FROM image WHERE id = %s",
                 (image_id,)
             )
             row = cur.fetchone()
             if not row:
                 return
 
-            storage_path, project_id, capture_datetime, existing_hash = row
+            storage_path, project_id, capture_datetime, existing_hash, upload_datetime = row
             
-            if not capture_datetime:
-                # If no capture time, we can't do time-based grouping effectively 
-                # (or we could fallback to upload time, but requirement says 5 min window, implying capture time)
-                print(f"Image {image_id} has no capture_datetime. Skipping similarity grouping.")
-                return
-
             # 2. Calculate Hash if not exists
             p_hash_obj = None
             p_hash_str = existing_hash
@@ -79,11 +73,18 @@ class SimilarityGroupingTask(ImageProcessingTask):
             else:
                 p_hash_obj = imagehash.hex_to_hash(p_hash_str)
 
+            reference_time = capture_datetime if capture_datetime else upload_datetime
+
+            if not reference_time:
+                # Should not happen as upload_datetime is not null, but safety check
+                print(f"Image {image_id} has no capture_datetime or upload_datetime. Skipping similarity grouping.")
+                return
+
             # 3. Find candidates in time window
             # Window is +/- 5 minutes
             time_window = timedelta(minutes=5)
-            start_time = capture_datetime - time_window
-            end_time = capture_datetime + time_window
+            start_time = reference_time - time_window
+            end_time = reference_time + time_window
 
             cur.execute(
                 """
@@ -91,7 +92,7 @@ class SimilarityGroupingTask(ImageProcessingTask):
                 FROM image 
                 WHERE project_id = %s 
                   AND id != %s 
-                  AND capture_datetime BETWEEN %s AND %s
+                  AND COALESCE(capture_datetime, upload_datetime) BETWEEN %s AND %s
                   AND perceptual_hash IS NOT NULL
                 """,
                 (project_id, image_id, start_time, end_time)
