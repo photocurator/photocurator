@@ -38,6 +38,8 @@ class QualityScore {
 class ImageItem {
   final String id;
   final bool isRejected;
+  final bool isPicked;
+  final bool compareViewSelected;
   final int rating;
   final double? score;
   final DateTime createdAt;
@@ -47,6 +49,8 @@ class ImageItem {
   ImageItem({
     required this.id,
     this.isRejected = false,
+    this.isPicked = false,
+    this.compareViewSelected = false,
     this.rating = 0,
     this.score,
     required this.createdAt,
@@ -93,11 +97,31 @@ class ImageItem {
     return ImageItem(
       id: json['image']?['id'] ?? '',
       isRejected: json['imageSelection']?['isRejected'] ?? false,
+      isPicked: json['imageSelection']?['isPicked'] ?? false,
+      compareViewSelected: json['image']?['compareViewSelected'] ?? false,
       rating: json['imageSelection']?['rating'] ?? 0,
       score: parseScore(musiqScoreRaw),
       createdAt: parseDate(json['image']?['createdAt']) ?? DateTime.now(),
       objectTags: parseTags(json['objectTags']),
       qualityScore: QualityScore.fromJson(qualityJson),
+    );
+  }
+
+  ImageItem copyWith({
+    bool? isPicked,
+    bool? isRejected,
+    bool? compareViewSelected,
+  }) {
+    return ImageItem(
+      id: id,
+      isRejected: isRejected ?? this.isRejected,
+      isPicked: isPicked ?? this.isPicked,
+      compareViewSelected: compareViewSelected ?? this.compareViewSelected,
+      rating: rating,
+      score: score,
+      createdAt: createdAt,
+      objectTags: objectTags,
+      qualityScore: qualityScore,
     );
   }
 
@@ -143,15 +167,19 @@ class ApiService {
     String? viewType,
     String? sortType,
     String? groupBy,
+    bool? compareViewSelected,
   }) async {
     try {
+      final queryParams = <String, dynamic>{
+        if (viewType != null) 'viewType': viewType,
+        if (sortType != null) 'sort': sortType,
+        if (groupBy != null) 'groupBy': groupBy,
+        if (compareViewSelected != null) 'compareViewSelected': compareViewSelected.toString(),
+      };
+
       final res = await _dio.get(
         '/projects/$projectId/images',
-        queryParameters: {
-          if (viewType != null) 'viewType': viewType,
-          if (sortType != null) 'sort': sortType,
-          if (groupBy != null) 'groupBy': groupBy,
-        },
+        queryParameters: queryParams,
       );
 
       final data = res.data['data'] as List<dynamic>;
@@ -160,6 +188,26 @@ class ApiService {
       print('Error fetching project images: $e');
       return [];
     }
+  }
+
+  // Adding these methods as requested in plan
+  Future<void> updateImageSelection(String imageId, {bool? isPicked, int? rating}) async {
+    await _dio.put(
+      '/images/$imageId/selection',
+      data: {
+        if (isPicked != null) 'isPicked': isPicked,
+        if (rating != null) 'rating': rating,
+      },
+    );
+  }
+
+  Future<void> updateImageCompareStatus(String imageId, bool compareViewSelected) async {
+    await _dio.patch(
+      '/images/$imageId',
+      data: {
+        'compareViewSelected': compareViewSelected,
+      },
+    );
   }
 }
 

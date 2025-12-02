@@ -146,6 +146,7 @@ const getImagesRoute = createRoute({
       projectId: z.string().optional(),
       isPicked: z.enum(['true', 'false']).optional(),
       isRejected: z.enum(['true', 'false']).optional(),
+      compareViewSelected: z.enum(['true', 'false']).optional(),
       minQualityScore: z.coerce.number().optional(),
       rating: z.coerce.number().int().min(0).max(5).optional(),
       page: z.coerce.number().min(1).default(1),
@@ -185,6 +186,7 @@ app.openapi(getImagesRoute, async (c) => {
       projectId,
       isPicked,
       isRejected,
+      compareViewSelected,
       minQualityScore,
       rating,
       page,
@@ -237,6 +239,11 @@ app.openapi(getImagesRoute, async (c) => {
     if (isRejected) {
       const isRejectedBool = isRejected === 'true';
       filters.push(eq(imageSelection.isRejected, isRejectedBool));
+    }
+
+    if (compareViewSelected) {
+      const compareViewSelectedBool = compareViewSelected === 'true';
+      filters.push(eq(imageTable.compareViewSelected, compareViewSelectedBool));
     }
 
     if (rating !== undefined) {

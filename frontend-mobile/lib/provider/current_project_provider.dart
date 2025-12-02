@@ -28,6 +28,7 @@ class CurrentProjectImagesProvider extends ChangeNotifier {
   List<ImageItem> trashImages = [];
   List<ImageItem> bestShotImages = [];
   List<ImageItem> pickedImages = [];
+  List<ImageItem> compareImages = [];
 
   bool isLoading = false;
 
@@ -67,6 +68,11 @@ class CurrentProjectImagesProvider extends ChangeNotifier {
         viewType: 'PICKED',
       );
 
+      compareImages = await ApiService().fetchProjectImages(
+        projectId: projectId,
+        compareViewSelected: true,
+      );
+
     } catch (e) {
       print('이미지 로드 실패: $e');
       // 필요하면 error 상태 처리 가능
@@ -83,6 +89,46 @@ class CurrentProjectImagesProvider extends ChangeNotifier {
     trashImages = [];
     bestShotImages = [];
     pickedImages = [];
+    compareImages = [];
+    notifyListeners();
+  }
+
+  // --- Methods to update local state from Comparison View ---
+
+  void updateCompareImageLike(String imageId, bool isPicked) {
+    // Update compareImages
+    final index = compareImages.indexWhere((img) => img.id == imageId);
+    if (index != -1) {
+      compareImages[index] = compareImages[index].copyWith(isPicked: isPicked);
+    }
+
+    // Update allImages
+    final allIndex = allImages.indexWhere((img) => img.id == imageId);
+    if (allIndex != -1) {
+      allImages[allIndex] = allImages[allIndex].copyWith(isPicked: isPicked);
+    }
+
+    // Update pickedImages if needed
+    if (isPicked) {
+       // Ideally we should add it if not present, but for simplicity just triggering listeners might be enough
+       // or fetching again. But let's try to keep it simple.
+    } else {
+       pickedImages.removeWhere((img) => img.id == imageId);
+    }
+
+    notifyListeners();
+  }
+
+  void removeCompareImage(String imageId) {
+    compareImages.removeWhere((img) => img.id == imageId);
+
+    // Also update allImages to reflect that it is no longer selected for compare view?
+    // The ImageItem model has compareViewSelected field.
+    final allIndex = allImages.indexWhere((img) => img.id == imageId);
+    if (allIndex != -1) {
+      allImages[allIndex] = allImages[allIndex].copyWith(compareViewSelected: false);
+    }
+
     notifyListeners();
   }
 }
