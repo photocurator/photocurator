@@ -90,7 +90,7 @@ Future<Uint8List?> _fetchImageBytes(String imageId) async {
   try {
     final dio = FlutterBetterAuth.dioClient; // 인증된 Dio
     final response = await dio.get(
-      '${dotenv.env['API_BASE_URL']}/images/$imageId/file',
+      '${dotenv.env['API_BASE_URL']}/images/$imageId/thumbnail',
       options: Options(responseType: ResponseType.bytes),
     );
     return response.data;

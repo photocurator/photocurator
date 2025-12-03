@@ -494,7 +494,11 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T> {
     if (sortType == "recommend") {
       images.sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
     } else if (sortType == "time") {
-      images.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      images.sort((a, b) {
+        final aDate = a.captureDatetime ?? a.createdAt;
+        final bDate = b.captureDatetime ?? b.createdAt;
+        return bDate.compareTo(aDate);
+      });
     }
   }
 

@@ -43,6 +43,7 @@ class ImageItem {
   final bool compareViewSelected;
   final double? score;
   final DateTime createdAt;
+  final DateTime? captureDatetime;
   final QualityScore qualityScore;
   final List<ObjectTag> objectTags;
 
@@ -54,6 +55,7 @@ class ImageItem {
     this.rating = 0,
     this.score,
     required this.createdAt,
+    this.captureDatetime,
     this.objectTags = const [],
     QualityScore? qualityScore,
   }) : qualityScore = qualityScore ?? QualityScore();
@@ -65,6 +67,7 @@ class ImageItem {
     int? rating,
     double? score,
     DateTime? createdAt,
+    DateTime? captureDatetime,
     QualityScore? qualityScore,
     List<ObjectTag>? objectTags,
   }) {
@@ -75,6 +78,7 @@ class ImageItem {
       rating: rating ?? this.rating,
       score: score ?? this.score,
       createdAt: createdAt ?? this.createdAt,
+      captureDatetime: captureDatetime ?? this.captureDatetime,
       objectTags: objectTags ?? this.objectTags,
       qualityScore: qualityScore ?? this.qualityScore,
       compareViewSelected: compareViewSelected ?? this.compareViewSelected,
@@ -132,6 +136,7 @@ class ImageItem {
       rating: json['imageSelection']?['rating'] ?? 0,
       score: parseScore(musiqScoreRaw),
       createdAt: parseDate(json['image']?['createdAt']) ?? DateTime.now(),
+      captureDatetime: parseDate(json['image']?['captureDatetime']),
       objectTags: parseTags(json['objectTags']),
       qualityScore: QualityScore.fromJson(qualityJson),
     );
@@ -303,7 +308,7 @@ class ImageItemWidget extends StatelessWidget {
       try {
         final dio = FlutterBetterAuth.dioClient; // 인증 적용된 dio
         final response = await dio.get(
-          '${dotenv.env['API_BASE_URL']}/images/$imageId/file',
+          '${dotenv.env['API_BASE_URL']}/images/$imageId/thumbnail',
           options: Options(responseType: ResponseType.bytes),
         );
 

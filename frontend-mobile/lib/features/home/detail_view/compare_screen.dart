@@ -176,6 +176,13 @@ class _CompareScreenState extends State<CompareScreen> {
     final images = provider.compareImages;
     final deviceWidth = MediaQuery.of(context).size.width;
 
+    // Drop cached entries for images that were removed so UI updates cleanly after delete
+    final currentIds = images.map((e) => e.id).toSet();
+    _imageCache.keys
+        .where((id) => !currentIds.contains(id))
+        .toList()
+        .forEach(_imageCache.remove);
+
     // Safety check
     if (images.isEmpty) {
       return Scaffold(
@@ -322,7 +329,7 @@ class _CompareScreenState extends State<CompareScreen> {
       try {
         final dio = FlutterBetterAuth.dioClient;
         final response = await dio.get(
-          '${dotenv.env['API_BASE_URL']}/images/$imageId/file',
+          '${dotenv.env['API_BASE_URL']}/images/$imageId/thumbnail',
           options: Options(responseType: ResponseType.bytes),
         );
         final bytes = response.data;
