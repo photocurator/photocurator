@@ -816,4 +816,148 @@ app.openapi(postImageRejectRoute, async (c) => {
     return c.json({ message: 'Rejection recorded' });
 });
 
+const BatchRejectRequestSchema = z.object({
+  imageIds: z.array(z.uuid()),
+  reasonCode: z.enum(['BLURRY', 'BAD_COMPOSITION', 'CLOSED_EYES', 'DUPLICATE', 'OTHER']),
+  reasonText: z.string().optional(),
+});
+
+const BatchRejectResponseSchema = z.object({
+  succeeded: z.array(z.string()),
+  failed: z.array(z.object({
+    imageId: z.string(),
+    error: z.string(),
+  })),
+});
+
+const postBatchImageRejectRoute = createRoute({
+  method: 'post',
+  path: '/batch-reject',
+  summary: 'Batch reject images',
+  description: 'Reject multiple images at once with a single reason.',
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: BatchRejectRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'Batch rejection results.',
+      content: {
+        'application/json': {
+          schema: BatchRejectResponseSchema,
+        },
+      },
+    },
+    401: {
+      description: 'Unauthorized access.',
+      content: {
+        'application/json': {
+          schema: ErrorSchema,
+        },
+      },
+    },
+  },
+});
+
+app.openapi(postBatchImageRejectRoute, async (c) => {
+  const { imageIds, reasonCode, reasonText } = c.req.valid('json');
+  const user = c.get('user');
+
+  if (!user) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  const succeeded: string[] = [];
+  const failed: { imageId: string; error: string }[] = [];
+
+  if (imageIds.length === 0) {
+      return c.json({ succeeded, failed });
+  }
+
+  const dbReasonCode = (
+    reasonCode === 'BLURRY' ? 'out_of_focus' :
+    reasonCode === 'BAD_COMPOSITION' ? 'poor_composition' :
+    reasonCode === 'DUPLICATE' ? 'duplicate' :
+    'other'
+  ) as typeof userRejectionReason.$inferInsert['reasonCode'];
+
+  const finalReasonText = reasonCode === 'CLOSED_EYES'
+    ? (reasonText ? `Closed eyes: ${reasonText}` : 'Closed eyes')
+    : reasonText;
+
+  // 1. Identify valid images
+  const validImages = await db
+    .select({ id: imageTable.id })
+    .from(imageTable)
+    .leftJoin(project, eq(imageTable.projectId, project.id))
+    .where(and(
+        inArray(imageTable.id, imageIds),
+        or(
+            eq(imageTable.userId, user.id),
+            and(
+                eq(project.userId, user.id),
+                eq(imageTable.projectId, project.id)
+            )
+        )
+    ));
+
+  const validImageIds = new Set(validImages.map(i => i.id));
+
+  // 2. Separate succeeded and failed (pre-execution)
+  for (const id of imageIds) {
+      if (!validImageIds.has(id)) {
+          failed.push({ imageId: id, error: 'Image not found or unauthorized' });
+      }
+  }
+
+  const imagesToProcess = Array.from(validImageIds);
+
+  if (imagesToProcess.length > 0) {
+      try {
+          // Bulk insert rejection reasons
+          const rejectionValues = imagesToProcess.map(imageId => ({
+              id: randomUUID(),
+              imageId,
+              userId: user.id,
+              reasonCode: dbReasonCode,
+              reasonText: finalReasonText,
+          }));
+
+          await db.insert(userRejectionReason).values(rejectionValues);
+
+          // Bulk insert/update selections
+          const selectionValues = imagesToProcess.map(imageId => ({
+              id: randomUUID(), // Note: ID is only used for new rows.
+              imageId,
+              userId: user.id,
+              isRejected: true,
+          }));
+
+          await db
+            .insert(imageSelection)
+            .values(selectionValues)
+            .onConflictDoUpdate({
+                target: [imageSelection.imageId, imageSelection.userId],
+                set: { isRejected: true },
+            });
+
+           succeeded.push(...imagesToProcess);
+
+      } catch (e) {
+           console.error("Batch reject transaction failed", e);
+           // If bulk operation fails, fail all valid ones with internal error.
+           for (const id of imagesToProcess) {
+               failed.push({ imageId: id, error: 'Internal server error' });
+           }
+      }
+  }
+
+  return c.json({ succeeded, failed });
+});
+
 export default app;
