@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 //import 'package:photocurator/common/bar/view/app_bar.dart';
 import 'package:photocurator/common/bar/view/detail_app_bar.dart';
 import 'package:photocurator/common/theme/colors.dart';
@@ -7,7 +8,6 @@ import 'package:photocurator/common/widgets/more_dropdown.dart';
 import 'package:photocurator/provider/current_project_provider.dart';
 import 'package:photocurator/features/start/service/project_service.dart'; // Project 클래스 import
 import 'package:provider/provider.dart';
-
 
 import '../detail_view/trash_screen.dart';
 import '../detail_view/compare_screen.dart';
@@ -28,18 +28,20 @@ import 'package:provider/provider.dart';
 class HomeScreen extends StatelessWidget {
   final String projectId;
 
-  const HomeScreen({
+  HomeScreen({
     super.key,
     required this.projectId,
   });
+
+  // HomeTabSection 접근용 key
+  final GlobalKey<HomeTabSectionState> tabKey = GlobalKey();
 
   @override
   Widget build(BuildContext context) {
     // 1️Provider에서 현재 프로젝트 id 가져오기
     final currentProjectProvider = context.watch<CurrentProjectProvider>();
-    final String pjname = currentProjectProvider.currentProject?.projectName ?? "project name";
-
-
+    final String pjname =
+        currentProjectProvider.currentProject?.projectName ?? "project name";
 
     return Scaffold(
       backgroundColor: AppColors.wh1,
@@ -51,7 +53,8 @@ class HomeScreen extends StatelessWidget {
           DropdownItem(
             text: "이미지 업로드",
             onTap: () async {
-              final pid = currentProjectProvider.currentProject?.id ?? projectId;
+              final pid =
+                  currentProjectProvider.currentProject?.id ?? projectId;
               if (pid.isEmpty) return;
               await Navigator.push(
                 context,
@@ -62,7 +65,9 @@ class HomeScreen extends StatelessWidget {
                         )),
               );
               if (!context.mounted) return;
-              await context.read<CurrentProjectImagesProvider>().loadAllImages(pid);
+              await context
+                  .read<CurrentProjectImagesProvider>()
+                  .loadAllImages(pid);
             },
           ),
           DropdownItem(
@@ -105,8 +110,11 @@ class HomeScreen extends StatelessWidget {
           Container(height: 1),
           Expanded(
             child: HomeTabSection(
+              key: tabKey, // 🔥 여기!!!
               pages: [
-                HighlightScreen(),
+                HighlightScreen(onMoveToGrade: () {
+                  tabKey.currentState?.jumpToTab(3); // 등급 탭
+                }),
                 LikeScreen(),
                 DateScreen(),
                 GradeScreen(),
