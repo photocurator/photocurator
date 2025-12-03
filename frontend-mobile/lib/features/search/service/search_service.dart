@@ -35,7 +35,7 @@ class SearchResultImage {
     }
 
     final String imageId = imageJson['id'];
-    final String imageFileUrl = '$baseUrl/images/$imageId/file';
+    final String imageFileUrl = '$baseUrl/images/$imageId/thumbnail';
     final qualityScore = QualityScore.fromJson(json['qualityScore'] as Map<String, dynamic>?);
     final createdAtStr = imageJson['createdAt'] as String?;
     final selectionJson = json['imageSelection'] as Map<String, dynamic>? ?? {};
