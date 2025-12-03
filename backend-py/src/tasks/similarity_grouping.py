@@ -14,18 +14,6 @@ class SimilarityGroupingTask(ImageProcessingTask):
     def version(self):
         return "1.0.0"
 
-    def check_already_processed(self, cur, image_id: str) -> bool:
-        cur.execute(
-            """
-            SELECT 1 
-            FROM image_group_membership igm
-            JOIN image_group ig ON igm.group_id = ig.id
-            WHERE igm.image_id = %s AND ig.group_type = 'similar'
-            """,
-            (image_id,)
-        )
-        return cur.fetchone() is not None
-
     def run(self, image_id: str):
         """The main execution method for the task.
 
