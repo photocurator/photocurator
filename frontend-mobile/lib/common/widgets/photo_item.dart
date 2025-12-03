@@ -212,10 +212,32 @@ class ApiService {
       return false;
     }
   }
+
+  Future<bool> batchRejectImages({
+    required List<String> imageIds,
+    String reasonCode = 'BLURRY',
+    String reasonText = '',
+  }) async {
+    try {
+      final res = await _dio.post(
+        '/images/batch-reject',
+        data: {
+          'imageIds': imageIds,
+          'reasonCode': reasonCode,
+          'reasonText': reasonText,
+        },
+      );
+      return res.statusCode != null && res.statusCode! < 300;
+    } catch (e) {
+      debugPrint('Error batch rejecting images: $e');
+      return false;
+    }
+  }
 }
 
 // image_item_widget.dart
 class ImageItemWidget extends StatelessWidget {
+  static final Map<String, Future<Uint8List?>> _imageCache = {};
   final ImageItem item;
   final List<ImageItem> images; // 전체 이미지 리스트
   final int index;               // 현재 인덱스
@@ -240,21 +262,23 @@ class ImageItemWidget extends StatelessWidget {
   });
 
   Future<Uint8List?> _fetchImageBytes(String imageId) async {
-    try {
-      final dio = FlutterBetterAuth.dioClient; // 인증 적용된 dio
-      final response = await dio.get(
-        '${dotenv.env['API_BASE_URL']}/images/$imageId/file',
-        options: Options(responseType: ResponseType.bytes),
-      );
+    return _imageCache.putIfAbsent(imageId, () async {
+      try {
+        final dio = FlutterBetterAuth.dioClient; // 인증 적용된 dio
+        final response = await dio.get(
+          '${dotenv.env['API_BASE_URL']}/images/$imageId/file',
+          options: Options(responseType: ResponseType.bytes),
+        );
 
-      final bytes = response.data;
-      if (bytes is Uint8List) return bytes;
-      if (bytes is List<int>) return Uint8List.fromList(bytes);
-      return null;
-    } catch (e) {
-      debugPrint('Failed to fetch image bytes: $e');
-      return null;
-    }
+        final bytes = response.data;
+        if (bytes is Uint8List) return bytes;
+        if (bytes is List<int>) return Uint8List.fromList(bytes);
+        return null;
+      } catch (e) {
+        debugPrint('Failed to fetch image bytes: $e');
+        return null;
+      }
+    });
   }
 
 
@@ -311,7 +335,6 @@ class ImageItemWidget extends StatelessWidget {
                 left: 6,
                 child: Container(
                   padding: const EdgeInsets.all(2),
-                  color: Colors.white,
                   child: SvgPicture.asset(
                     isSelected
                         ? 'assets/icons/button/select_button_blue.svg'
@@ -321,21 +344,22 @@ class ImageItemWidget extends StatelessWidget {
                   ),
                 ),
               ),
-            Positioned(
-              right: 6,
-              bottom: 6,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => onTogglePick?.call(!item.isPicked),
-                child: SvgPicture.asset(
-                  item.isPicked
-                      ? 'assets/icons/button/filled_heart.svg'
-                      : 'assets/icons/button/empty_heart_gray.svg',
-                  width: 20,
-                  height: 20,
+            if (!isSelecting)
+              Positioned(
+                right: 6,
+                bottom: 6,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onTogglePick?.call(!item.isPicked),
+                  child: SvgPicture.asset(
+                    item.isPicked
+                        ? 'assets/icons/button/filled_heart.svg'
+                        : 'assets/icons/button/empty_heart_gray.svg',
+                    width: 20,
+                    height: 20,
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),

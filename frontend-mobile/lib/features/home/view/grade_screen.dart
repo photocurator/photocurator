@@ -104,6 +104,7 @@ class _GradeScreenState extends BasePhotoContent<GradeScreen> {
                   }
                 });
               },
+              onDeleteSelected: onDeleteSelected,
               onCancel: () => setState(() => isSelecting = false),
               isAllSelected: selectedImages.length == currentImages.length,
             )

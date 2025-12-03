@@ -24,6 +24,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   bool isLoading = true;
   bool isSelecting = false;
   List<ImageItem> selectedImages = [];
+  final ApiService _apiService = ApiService();
 
   @override
   void initState() {
@@ -81,6 +82,53 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     selectedImages.clear();
   });
 
+  Future<void> _refresh() async {
+    await _loadGroupImages();
+  }
+
+  Future<void> _togglePick(ImageItem item, bool newValue) async {
+    final success = await _apiService.updateImageSelection(
+      imageId: item.id,
+      isPicked: newValue,
+      rating: item.rating,
+    );
+    if (!mounted) return;
+    if (success) {
+      setState(() {
+        groupImages = groupImages
+            .map((img) => img.id == item.id ? img.copyWith(isPicked: newValue) : img)
+            .toList();
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('좋아요 변경에 실패했습니다.')),
+      );
+    }
+  }
+
+  Future<void> _deleteSelected() async {
+    if (selectedImages.isEmpty) {
+      cancelSelection();
+      return;
+    }
+    final ids = selectedImages.map((e) => e.id).toList();
+    final success = await _apiService.batchRejectImages(imageIds: ids);
+    if (!mounted) return;
+    if (success) {
+      setState(() {
+        groupImages = groupImages.where((img) => !ids.contains(img.id)).toList();
+        cancelSelection();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('선택한 이미지를 삭제했습니다.')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('삭제에 실패했습니다.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final deviceWidth = MediaQuery.of(context).size.width;
@@ -101,6 +149,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           }
           setState(() {});
         },
+        onDeleteSelected: _deleteSelected,
         onCancel: cancelSelection,
         isAllSelected: selectedImages.length == groupImages.length,
       )
@@ -121,12 +170,16 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           ? const Center(child: CircularProgressIndicator())
           : groupImages.isEmpty
           ? const Center(child: Text("이미지가 없습니다."))
-          : PhotoGrid(
-        images: groupImages,
-        isSelecting: isSelecting,
-        selectedImages: selectedImages,
-        onSelectToggle: toggleSelection,
-        onLongPressItem: () => setState(() => isSelecting = true),
+          : RefreshIndicator(
+        onRefresh: _refresh,
+        child: PhotoGrid(
+          images: groupImages,
+          isSelecting: isSelecting,
+          selectedImages: selectedImages,
+          onSelectToggle: toggleSelection,
+          onLongPressItem: () => setState(() => isSelecting = true),
+          onTogglePick: _togglePick,
+        ),
       ),
     );
   }

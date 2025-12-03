@@ -143,6 +143,7 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
                   }
                 });
               },
+              onDeleteSelected: onDeleteSelected,
               onCancel: () => setState(() => isSelecting = false),
               isAllSelected:
               selectedImages.length == currentImages.length,
@@ -289,6 +290,7 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
                   }
                 });
               },
+              onDeleteSelected: onDeleteSelected,
               onCancel: () => setState(() => isSelecting = false),
               isAllSelected:
               selectedImages.length == currentImages.length,

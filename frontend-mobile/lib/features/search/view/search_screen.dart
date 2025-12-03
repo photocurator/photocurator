@@ -522,21 +522,22 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                   )
                 ],
-                Positioned(
-                  right: 6,
-                  bottom: 6,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => _togglePick(index),
-                    child: SvgPicture.asset(
-                      _searchResults[index].isPicked
-                          ? 'assets/icons/button/filled_heart.svg'
-                          : 'assets/icons/button/empty_heart_gray.svg',
-                      width: 20,
-                      height: 20,
+                if (!_isSelectionMode)
+                  Positioned(
+                    right: 6,
+                    bottom: 6,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _togglePick(index),
+                      child: SvgPicture.asset(
+                        _searchResults[index].isPicked
+                            ? 'assets/icons/button/filled_heart.svg'
+                            : 'assets/icons/button/empty_heart_gray.svg',
+                        width: 20,
+                        height: 20,
+                      ),
                     ),
                   ),
-                ),
               ]);
             },
           ),

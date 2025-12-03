@@ -109,6 +109,29 @@ class CurrentProjectImagesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void markAsRejected(List<String> imageIds) {
+    final rejected = allImages
+        .where((img) => imageIds.contains(img.id))
+        .map((img) => img.copyWith(isRejected: true))
+        .toList();
+
+    ImageItem mapper(ImageItem img) =>
+        imageIds.contains(img.id) ? img.copyWith(isRejected: true) : img;
+
+    allImages =
+        allImages.map(mapper).where((img) => !img.isRejected).toList();
+    bestShotImages =
+        bestShotImages.map(mapper).where((img) => !img.isRejected).toList();
+    pickedImages =
+        pickedImages.map(mapper).where((img) => !img.isRejected).toList();
+    trashImages = trashImages.map(mapper).toList();
+    hiddenImages = [
+      ...hiddenImages.where((img) => !imageIds.contains(img.id)),
+      ...rejected,
+    ];
+    notifyListeners();
+  }
+
 
   /// 그룹별 데이터만 따로 로드 가능 (대표 이미지 미리 다운로드 포함)
 // [수정 1] 괄호 위치 수정: 이 메서드가 클래스 안으로 들어와야 합니다.

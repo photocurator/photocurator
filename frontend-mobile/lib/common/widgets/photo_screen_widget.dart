@@ -18,9 +18,40 @@ import 'package:photocurator/provider/current_project_provider.dart';
 abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T> {
   String get screenTitle;
   String get viewType; // 'ALL', 'TRASH', 'BEST_SHOTS', 'I_PICKED', 'HIDDEN'
+  bool get showBottomActionBar => false; // 기본은 하단 액션바 숨김
 
   bool isSelecting = false;
   List<ImageItem> selectedImages = [];
+
+  Future<void> refreshImages() async {
+    final projectId = context.read<CurrentProjectProvider>().currentProject?.id;
+    if (projectId == null) return;
+    await context.read<CurrentProjectImagesProvider>().loadAllImages(projectId);
+  }
+
+  Future<void> onDeleteSelected() async {
+    if (selectedImages.isEmpty) {
+      cancelSelection();
+      return;
+    }
+    final ids = selectedImages.map((e) => e.id).toList();
+    final success = await ApiService().batchRejectImages(imageIds: ids);
+    if (!mounted) return;
+    if (success) {
+      context.read<CurrentProjectImagesProvider>().markAsRejected(ids);
+      setState(() {
+        isSelecting = false;
+        selectedImages.clear();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('선택한 이미지를 삭제했습니다.')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('삭제에 실패했습니다.')),
+      );
+    }
+  }
 
   Future<void> togglePick(ImageItem item, bool newValue) async {
     final success = await ApiService().updateImageSelection(
@@ -106,6 +137,7 @@ abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T> {
             }
           });
         },
+        onDeleteSelected: onDeleteSelected,
         onCancel: () => cancelSelection(),
         isAllSelected: selectedImages.length == images.length,
       )
@@ -124,16 +156,20 @@ abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T> {
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : PhotoGrid(
-        images: images,
-        isSelecting: isSelecting,
-        selectedImages: selectedImages,
-        onSelectToggle: toggleSelection,
-        onLongPressItem: () => setState(() => isSelecting = true),
-        onTogglePick: togglePick,
+          : RefreshIndicator(
+        onRefresh: refreshImages,
+        child: PhotoGrid(
+          images: images,
+          isSelecting: isSelecting,
+          selectedImages: selectedImages,
+          onSelectToggle: toggleSelection,
+          onLongPressItem: () => setState(() => isSelecting = true),
+          onTogglePick: togglePick,
+        ),
       ),
 
-        bottomSheet: isSelecting ? null : _buildBottomActionBar(),
+        bottomSheet:
+        (!isSelecting && showBottomActionBar) ? _buildBottomActionBar() : null,
     );
   }
 
@@ -158,10 +194,41 @@ abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T> {
 abstract class BasePhotoContent<T extends StatefulWidget> extends State<T> {
   String get screenTitle;
   String get viewType;
+  bool get showBottomActionBar => false; // 기본은 하단 액션바 숨김
   String sortType = "recommend"; // 기본 정렬
 
   bool isSelecting = false;
   List<ImageItem> selectedImages = [];
+
+  Future<void> refreshImages() async {
+    final projectId = context.read<CurrentProjectProvider>().currentProject?.id;
+    if (projectId == null) return;
+    await context.read<CurrentProjectImagesProvider>().loadAllImages(projectId);
+  }
+
+  Future<void> onDeleteSelected() async {
+    if (selectedImages.isEmpty) {
+      cancelSelection();
+      return;
+    }
+    final ids = selectedImages.map((e) => e.id).toList();
+    final success = await ApiService().batchRejectImages(imageIds: ids);
+    if (!mounted) return;
+    if (success) {
+      context.read<CurrentProjectImagesProvider>().markAsRejected(ids);
+      setState(() {
+        isSelecting = false;
+        selectedImages.clear();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('선택한 이미지를 삭제했습니다.')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('삭제에 실패했습니다.')),
+      );
+    }
+  }
 
   Future<void> togglePick(ImageItem item, bool newValue) async {
     final success = await ApiService().updateImageSelection(
@@ -251,6 +318,7 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T> {
             }
           });
         },
+        onDeleteSelected: onDeleteSelected,
         onCancel: () => cancelSelection(),
         isAllSelected: selectedImages.length == images.length,
       )
@@ -265,23 +333,26 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T> {
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : PhotoGrid(
-        images: images,
-        isSelecting: isSelecting,
-        selectedImages: selectedImages,
-        onSelectToggle: toggleSelection,
-        onLongPressItem: () => setState(() => isSelecting = true),
-        onTogglePick: togglePick,
+          : RefreshIndicator(
+        onRefresh: refreshImages,
+        child: PhotoGrid(
+          images: images,
+          isSelecting: isSelecting,
+          selectedImages: selectedImages,
+          onSelectToggle: toggleSelection,
+          onLongPressItem: () => setState(() => isSelecting = true),
+          onTogglePick: togglePick,
+        ),
       ),
 
-        bottomSheet: isSelecting
-            ? null
-            : Container(
+        bottomSheet: (!isSelecting && showBottomActionBar)
+            ? Container(
           margin: EdgeInsets.only(bottom: deviceWidth * (60 / 375)),
           child: ActionBottomBar(
             selectedImages: selectedImages,
           ),
         )
+            : null
 
     );
   }

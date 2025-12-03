@@ -175,6 +175,7 @@ class _SubjectScreenState extends BasePhotoContent<SubjectScreen> {
                   }
                 });
               },
+              onDeleteSelected: onDeleteSelected,
               onCancel: () => setState(() => isSelecting = false),
               isAllSelected:
               selectedImages.length == currentImages.length,

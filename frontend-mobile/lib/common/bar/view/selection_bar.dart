@@ -8,6 +8,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 class SelectModeAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final VoidCallback onSelectAll;
+  final VoidCallback onDeleteSelected;
   final VoidCallback onCancel;
   final double deviceWidth;
   final bool isAllSelected;
@@ -15,6 +16,7 @@ class SelectModeAppBar extends StatelessWidget implements PreferredSizeWidget {
   const SelectModeAppBar({
     required this.title,
     required this.onSelectAll,
+    required this.onDeleteSelected,
     required this.onCancel,
     required this.deviceWidth,
     required this.isAllSelected,
@@ -47,7 +49,7 @@ class SelectModeAppBar extends StatelessWidget implements PreferredSizeWidget {
           title,
           style: TextStyle(
             fontFamily: 'NotoSansRegular',
-            fontSize: deviceWidth * (20 / 375),
+            fontSize: 12,
             color: AppColors.dg1C1F23,
             letterSpacing: 0,
           ),
@@ -59,19 +61,36 @@ class SelectModeAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 20),
-          child: GestureDetector(
-            onTap: onCancel,
-            child: Center(
-              child: Text(
-                "취소",
-                style: TextStyle(
-                  fontFamily: 'NotoSansMedium',
-                  fontSize: deviceWidth * (14 / 375),
-                  color: AppColors.lgADB5BD,
-                  letterSpacing: 0,
+          child: Row(
+            children: [
+              GestureDetector(
+                onTap: onDeleteSelected,
+                child: Text(
+                  "선택 삭제",
+                  style: TextStyle(
+                    fontFamily: 'NotoSansMedium',
+                    fontSize: deviceWidth * (14 / 375),
+                    color: AppColors.dg1C1F23,
+                    letterSpacing: 0,
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(width: 16),
+              GestureDetector(
+                onTap: onCancel,
+                child: Center(
+                  child: Text(
+                    "취소",
+                    style: TextStyle(
+                      fontFamily: 'NotoSansMedium',
+                      fontSize: 14,
+                      color: AppColors.lgADB5BD,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],
