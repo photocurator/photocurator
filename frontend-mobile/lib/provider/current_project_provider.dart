@@ -216,9 +216,10 @@ class CurrentProjectImagesProvider extends ChangeNotifier {
       // [수정 2] Future.wait를 사용하여 병렬 다운로드 (속도 개선)
       await Future.wait(projectGroups.map((group) async {
         try {
-          if (group.representativeImageId.isNotEmpty) {
+          final repId = group.representativeImageId;
+          if (repId != null && repId.isNotEmpty) {
             final res = await dio.get(
-              '$baseUrl/images/${group.representativeImageId}/file',
+              '$baseUrl/images/$repId/thumbnail',
               options: Options(responseType: ResponseType.bytes),
             );
             group.imageBytes = res.data;
@@ -244,13 +245,13 @@ class GroupItem {
   final String id;
   final String projectId;
   final String groupType;
-  final String representativeImageId;
-  final DateTime timeRangeStart;
-  final DateTime timeRangeEnd;
+  final String? representativeImageId;
+  final DateTime? timeRangeStart;
+  final DateTime? timeRangeEnd;
   final String? similarityScore;
   final int memberCount;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   Uint8List? imageBytes; // 여기 추가
 
@@ -258,28 +259,40 @@ class GroupItem {
     required this.id,
     required this.projectId,
     required this.groupType,
-    required this.representativeImageId,
-    required this.timeRangeStart,
-    required this.timeRangeEnd,
+    this.representativeImageId,
+    this.timeRangeStart,
+    this.timeRangeEnd,
     this.similarityScore,
     required this.memberCount,
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt,
+    this.updatedAt,
     this.imageBytes,
   });
 
   factory GroupItem.fromJson(Map<String, dynamic> json) {
+    DateTime? parseDate(dynamic value) {
+      if (value == null) return null;
+      if (value is String && value.isNotEmpty) {
+        try {
+          return DateTime.parse(value);
+        } catch (_) {
+          return null;
+        }
+      }
+      return null;
+    }
+
     return GroupItem(
-      id: json['id'],
-      projectId: json['projectId'],
-      groupType: json['groupType'],
+      id: json['id'] ?? '',
+      projectId: json['projectId'] ?? '',
+      groupType: json['groupType'] ?? '',
       representativeImageId: json['representativeImageId'],
-      timeRangeStart: DateTime.parse(json['timeRangeStart']),
-      timeRangeEnd: DateTime.parse(json['timeRangeEnd']),
+      timeRangeStart: parseDate(json['timeRangeStart']),
+      timeRangeEnd: parseDate(json['timeRangeEnd']),
       similarityScore: json['similarityScore'],
       memberCount: json['memberCount'] ?? 0,
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
+      createdAt: parseDate(json['createdAt']),
+      updatedAt: parseDate(json['updatedAt']),
     );
   }
 }
@@ -303,7 +316,15 @@ class GroupApiService {
     try {
       final res = await _dio.get('/projects/$projectId/groups');
 
-      final data = res.data['data'] as List<dynamic>;
+      final dynamic body = res.data;
+      List<dynamic> data;
+      if (body is List) {
+        data = body;
+      } else if (body is Map && body['data'] is List) {
+        data = body['data'] as List<dynamic>;
+      } else {
+        data = const [];
+      }
 
       return data
           .map((e) => GroupItem.fromJson(Map<String, dynamic>.from(e)))

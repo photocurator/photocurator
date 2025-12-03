@@ -106,7 +106,7 @@ class GroupCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            "${group.timeRangeStart.year}.${group.timeRangeStart.month.toString().padLeft(2, '0')}.${group.timeRangeStart.day.toString().padLeft(2, '0')}",
+                            _formatDate(group.timeRangeStart, group.timeRangeEnd),
                             style: const TextStyle(
                               fontFamily: 'NotoSansRegular',
                               fontSize: 12,
@@ -124,6 +124,12 @@ class GroupCard extends StatelessWidget {
         },
       ),
     );
+  }
+
+  String _formatDate(DateTime? start, DateTime? end) {
+    DateTime? pickDate = end ?? start;
+    if (pickDate == null) return '';
+    return "${pickDate.year}.${pickDate.month.toString().padLeft(2, '0')}.${pickDate.day.toString().padLeft(2, '0')}";
   }
 }
 
