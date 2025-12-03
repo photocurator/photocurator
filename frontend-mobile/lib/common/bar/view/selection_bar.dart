@@ -49,7 +49,7 @@ class SelectModeAppBar extends StatelessWidget implements PreferredSizeWidget {
           title,
           style: TextStyle(
             fontFamily: 'NotoSansRegular',
-            fontSize: 12,
+            fontSize: 13,
             color: AppColors.dg1C1F23,
             letterSpacing: 0,
           ),
@@ -69,7 +69,7 @@ class SelectModeAppBar extends StatelessWidget implements PreferredSizeWidget {
                   "선택 삭제",
                   style: TextStyle(
                     fontFamily: 'NotoSansMedium',
-                    fontSize: deviceWidth * (14 / 375),
+                    fontSize: 14,
                     color: AppColors.dg1C1F23,
                     letterSpacing: 0,
                   ),

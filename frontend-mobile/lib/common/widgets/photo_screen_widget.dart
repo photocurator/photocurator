@@ -182,6 +182,7 @@ abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T> {
       case 'BEST_SHOTS':
         return provider.bestShotImages;
       case 'I_PICKED':
+      case 'PICKED':
         return provider.pickedImages;
       case 'HIDDEN':
         return provider.hiddenImages;
@@ -374,6 +375,7 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T> {
       case 'BEST_SHOTS':
         return provider.bestShotImages;
       case 'I_PICKED':
+      case 'PICKED':
         return provider.pickedImages;
       case 'HIDDEN':
         return provider.hiddenImages;
