@@ -257,7 +257,7 @@ class SortingAppBar extends StatelessWidget implements PreferredSizeWidget {
           GestureDetector(
             onTap: onSortTime,
             child: Text(
-              "시간순",
+              "최신순",
               style: TextStyle(
                 fontFamily: 'NotoSansRegular',
                 fontSize: deviceWidth * (12 / 375),

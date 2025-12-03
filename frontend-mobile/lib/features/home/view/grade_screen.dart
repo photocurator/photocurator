@@ -15,24 +15,19 @@ class GradeScreen extends StatefulWidget {
   State<GradeScreen> createState() => _GradeScreenState();
 }
 
-class _GradeScreenState extends BasePhotoContent<GradeScreen> {
-  @override
-  String get screenTitle => "등급별 사진";
-
-  @override
-  String get viewType => "ALL"; // 전체 이미지 가져오기
-
-  @override
-  String get sortType => "time";
-  @override
-  String? get groupBy => null;
+class _GradeScreenState extends State<GradeScreen> {
 
   int selectedTabIndex = 0;
-  List<String> ratingLabels = ["베스트 샷"]; // 초기값
+  List<String> ratingLabels = ["베스트 샷", "A컷", "B컷"]; // 초기값
 
   void _prepareRatingLabels() {
     final imageProvider = context.read<CurrentProjectImagesProvider>();
-    final allImages = imageProvider.allImages; // viewType이 ALL이라면 allImages
+    final length = imageProvider.allImages.length; // viewType이 ALL이라면 allImages
+
+    if (length<=3)
+      ratingLabels = ["베스트 샷"];
+
+    /*
     // 존재하는 등급만 추출 후 내림차순 정렬
     final existingRatings = allImages
         .map((img) => img.rating)
@@ -44,18 +39,44 @@ class _GradeScreenState extends BasePhotoContent<GradeScreen> {
 
     ratingLabels = ["베스트 샷"];
     ratingLabels.addAll(existingRatings.map((r) => "$r점"));
+     */
   }
 
   List<ImageItem> get currentImages {
     final imageProvider = context.read<CurrentProjectImagesProvider>();
-    final allImages = imageProvider.allImages; // viewType이 ALL이라면 allImages
-    final bestShotImages = imageProvider.bestShotImages; // viewType이 ALL이라면 allImages
-    if (selectedTabIndex == 0) return bestShotImages;
+    final allImages = List<ImageItem>.from(imageProvider.allImages);
 
-    final label = ratingLabels[selectedTabIndex];
-    final rating = int.tryParse(label.replaceAll("점", "")) ?? 0;
-    return allImages.where((img) => img.rating == rating).toList();
+    if (allImages.isEmpty) return [];
+
+    // 1) musiqScore 기준 정렬 (내림차순)
+    allImages.sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
+
+    final total = allImages.length;
+
+    // 2) 베스트샷 개수 계산
+    int bestCount = (total * 0.3).floor(); // 상위 30%
+    if (bestCount < 3) bestCount = 3;
+    if (bestCount > 20) bestCount = 20;
+    if (bestCount > total) bestCount = total;
+
+    final bestShots = allImages.take(bestCount).toList();
+
+    // 3) 나머지 → A컷 / B컷
+    final remain = allImages.skip(bestCount).toList();
+    final remainCount = remain.length;
+
+    int aCutCount = (remainCount / 2).floor();
+    final aCuts = remain.take(aCutCount).toList();
+    final bCuts = remain.skip(aCutCount).toList();
+
+    // 4) 탭 선택 반영
+    if (selectedTabIndex == 0) return bestShots;
+    if (selectedTabIndex == 1) return aCuts;
+    if (selectedTabIndex == 2) return bCuts;
+
+    return [];
   }
+
 
   void _onTabSelected(int index) {
     setState(() => selectedTabIndex = index);
@@ -86,61 +107,41 @@ class _GradeScreenState extends BasePhotoContent<GradeScreen> {
             height: deviceWidth * (44 / 375),
           ),
 
-          // 2. 선택/정렬 바
-          SizedBox(
-            height: deviceWidth * (40 / 375),
-            child: isSelecting
-                ? SelectModeAppBar(
-              title: selectedImages.isEmpty
-                  ? "전체 선택"
-                  : "${selectedImages.length}개 선택됨",
-              deviceWidth: deviceWidth,
-              onSelectAll: () {
-                setState(() {
-                  if (selectedImages.length == currentImages.length) {
-                    selectedImages.clear();
-                  } else {
-                    selectedImages = List.from(currentImages);
-                  }
-                });
-              },
-              onAddToCompare: onAddToCompare,
-              onDownloadSelected: onDownloadSelected,
-              onDeleteSelected: onDeleteSelected,
-              onCancel: () => setState(() => isSelecting = false),
-              isAllSelected: selectedImages.length == currentImages.length,
-            )
-                : SortingAppBar(
-              screenTitle: screenTitle,
-              imagesCount: currentImages.length,
-              sortType: sortType ?? "time",
-              deviceWidth: deviceWidth,
-              onSelectMode: () => setState(() => isSelecting = true),
-              onSortRecommend: () => setState(() => sortType = "recommend"),
-              onSortTime: () => setState(() => sortType = "time"),
-            ),
-          ),
-
-          // 3. 이미지 그리드
           Expanded(
-            child: currentImages.isEmpty
-                ? const Center(
-              child: Text(
-                '선택된 등급의 이미지가 없습니다.',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            )
-                : PhotoGrid(
-              images: currentImages,
-              isSelecting: isSelecting,
-              selectedImages: selectedImages,
-              onSelectToggle: toggleSelection,
-              onLongPressItem: () => setState(() => isSelecting = true),
-              onTogglePick: togglePick,
-            ),
-          ),
+            child: GradeScreenContent(images: currentImages),
+          )
         ],
       ),
     );
   }
 }
+
+
+class GradeScreenContent extends StatefulWidget {
+  final List<ImageItem> images;
+
+  const GradeScreenContent({
+    Key? key,
+    required this.images,
+  }) : super(key: key);
+
+  @override
+  _GradeScreenContentState createState() => _GradeScreenContentState();
+}
+
+class _GradeScreenContentState extends BasePhotoContent<GradeScreenContent> {
+  @override
+  String get viewType => 'ALL';
+
+  @override
+  String get screenTitle => '날짜별 사진';
+
+  // 그룹핑 필요 없으므로 null 반환
+  @override
+  String? get groupBy => null;
+
+  // StatefulWidget의 images를 참조하려면 widget.images 사용
+  @override
+  List<ImageItem> get imageItems => widget.images;
+}
+

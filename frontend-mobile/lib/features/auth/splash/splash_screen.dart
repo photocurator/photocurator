@@ -1,6 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_better_auth/flutter_better_auth.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:async';
+
+Route _fadeRoute(Widget page) {
+  return PageRouteBuilder(
+    transitionDuration: Duration(milliseconds: 500),
+    pageBuilder: (_, __, ___) => page,
+    transitionsBuilder: (_, animation, __, child) {
+      return FadeTransition(
+        opacity: animation,
+        child: child,
+      );
+    },
+  );
+}
+
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -13,6 +28,104 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
+    Timer(Duration(seconds: 2), () {
+      Navigator.pushReplacement(
+        context,
+        _fadeRoute(NextScreen()),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final deviceWidth = MediaQuery.of(context).size.width;
+    final deviceHeight = MediaQuery.of(context).size.height;
+    return Scaffold(
+      body: Container(
+        width: deviceWidth,
+        height: deviceHeight,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFFd5cae9), // 왼쪽 상단 연보라
+              Color(0xFFa2c2ff), // 중간 푸른빛
+              Color(0xFF8bb6ff), // 하단 블루
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [],
+        ),
+      ),
+    );
+  }
+}
+
+class NextScreen extends StatefulWidget {
+  @override
+  _NextScreenState createState() => _NextScreenState();
+}
+
+class _NextScreenState extends State<NextScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Timer(Duration(seconds: 2), () {
+      Navigator.pushReplacement(
+        context,
+        _fadeRoute(LastScreen()),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final deviceWidth = MediaQuery.of(context).size.width;
+    final deviceHeight = MediaQuery.of(context).size.height;
+    return Scaffold(
+      body: Container(
+        width: deviceWidth,
+        height: deviceHeight,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFFB7BBEE), // 왼쪽 상단 연보라
+              Color(0xFF5B9AE7), // 중간 푸른빛
+              Color(0xFF508EE8), // 하단 블루
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Image.asset(
+              "assets/icons/button/logo_splash.png", // 로고 경로
+              width: 64,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class LastScreen extends StatefulWidget {
+  @override
+  _LastScreenState createState() => _LastScreenState();
+}
+
+class _LastScreenState extends State<LastScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Timer(Duration(seconds: 2), () {
+
+    });
     _decideInitialRoute();
   }
 
@@ -47,8 +160,33 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
+    final deviceWidth = MediaQuery.of(context).size.width;
+    final deviceHeight = MediaQuery.of(context).size.height;
+    return Scaffold(
+      body: Container(
+        width: deviceWidth,
+        height: deviceHeight,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFF3A7EE6), // 왼쪽 상단 연보라
+              Color(0xFF3A7EE6), // 중간 푸른빛
+              Color(0xFF3A7EE6), // 하단 블루
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Image.asset(
+              "assets/icons/button/logo_text.png",
+              width: 250,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

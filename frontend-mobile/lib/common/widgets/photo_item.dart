@@ -182,30 +182,45 @@ class ApiService {
   Future<List<ImageItem>> fetchProjectImages({
     required String projectId,
     String? viewType,
+    bool? compareViewSelected,
     String? sortType,
     String? groupBy,
-    bool? compareViewSelected,
   }) async {
+    final List<ImageItem> allImages = [];
+    String? cursor;
+
     try {
-      final queryParams = <String, dynamic>{
-        if (viewType != null) 'viewType': viewType,
-        if (sortType != null) 'sort': sortType,
-        if (groupBy != null) 'groupBy': groupBy,
-        if (compareViewSelected != null) 'compareViewSelected': compareViewSelected.toString(),
-      };
+      do {
+        final queryParams = <String, dynamic>{
+          if (viewType != null) 'viewType': viewType,
+          if (sortType != null) 'sort': sortType,
+          if (groupBy != null) 'groupBy': groupBy,
+          if (compareViewSelected != null)
+            'compareViewSelected': compareViewSelected.toString(),
+          if (cursor != null) 'nextCursor': cursor,
+        };
 
-      final res = await _dio.get(
-        '/projects/$projectId/images',
-        queryParameters: queryParams,
-      );
+        final res = await _dio.get(
+          '/projects/$projectId/images',
+          queryParameters: queryParams,
+        );
 
-      final data = res.data['data'] as List<dynamic>;
-      return data.map((e) => ImageItem.fromJson(Map<String, dynamic>.from(e))).toList();
+        final data = res.data['data'] as List<dynamic>;
+        cursor = res.data['nextCursor'];
+
+        allImages.addAll(
+          data.map((e) => ImageItem.fromJson(Map<String, dynamic>.from(e))),
+        );
+
+      } while (cursor != null);
+
+      return allImages;
     } catch (e) {
-      print('Error fetching project images: $e');
+      print('Error loading all images: $e');
       return [];
     }
   }
+
 
   Future<void> updateImageCompareStatus(String imageId, bool compareViewSelected) async {
     await _dio.patch(

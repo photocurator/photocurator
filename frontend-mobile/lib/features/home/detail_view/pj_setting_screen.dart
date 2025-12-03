@@ -26,7 +26,9 @@ class PjSettingScreen extends StatelessWidget {
 
       appBar: DetailAppBar(
         title: "프로젝트 설정",
-        rightWidget: GestureDetector(
+        rightWidget: null
+        /*
+        GestureDetector(
           onTap: () {
             print("우측 버튼 클릭");
           },
@@ -38,6 +40,7 @@ class PjSettingScreen extends StatelessWidget {
             ),
           ),
         ),
+        */
       ),
       body: Column(
           mainAxisAlignment: MainAxisAlignment.start, // start, center, end, spaceBetween, spaceAround, spaceEvenly 중 선택
