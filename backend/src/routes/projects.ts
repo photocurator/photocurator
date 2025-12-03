@@ -237,6 +237,7 @@ const getProjectImagesRoute = createRoute({
         }),
         query: z.object({
             viewType: z.enum(['ALL', 'PICKED', 'TRASH', 'BEST_SHOTS']).default('ALL'),
+            compareViewSelected: z.enum(['true', 'false']).optional(),
             minQualityScore: z.coerce.number().optional(),
             nextCursor: z.string().optional(),
         }),
@@ -266,7 +267,7 @@ const getProjectImagesRoute = createRoute({
 
 const getProjectImagesHandler: AppRouteHandler<typeof getProjectImagesRoute> = async (c) => {
     const { projectId } = c.req.param();
-    const { viewType, minQualityScore, nextCursor } = c.req.valid('query');
+    const { viewType, compareViewSelected, minQualityScore, nextCursor } = c.req.valid('query');
     const user = c.get('user');
 
     if (!user) {
@@ -280,6 +281,11 @@ const getProjectImagesHandler: AppRouteHandler<typeof getProjectImagesRoute> = a
         filters.push(eq(imageSelection.isPicked, true));
     } else if (viewType === 'TRASH') {
         filters.push(eq(imageSelection.isRejected, true));
+    }
+
+    if (compareViewSelected) {
+        const compareViewSelectedBool = compareViewSelected === 'true';
+        filters.push(eq(image.compareViewSelected, compareViewSelectedBool));
     }
 
     if (typeof minQualityScore === 'number' && !Number.isNaN(minQualityScore)) {

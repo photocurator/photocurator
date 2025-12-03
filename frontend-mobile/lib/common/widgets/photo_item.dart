@@ -40,6 +40,7 @@ class ImageItem {
   final bool isRejected;
   bool isPicked;
   final int rating;
+  final bool compareViewSelected;
   final double? score;
   final DateTime createdAt;
   final QualityScore qualityScore;
@@ -49,6 +50,7 @@ class ImageItem {
     required this.id,
     this.isRejected = false,
     this.isPicked = false,
+    this.compareViewSelected = false,
     this.rating = 0,
     this.score,
     required this.createdAt,
@@ -124,6 +126,7 @@ class ImageItem {
       id: json['image']?['id'] ?? '',
       isRejected: json['imageSelection']?['isRejected'] ?? false,
       isPicked: json['imageSelection']?['isPicked'] ?? false,
+      compareViewSelected: json['image']?['compareViewSelected'] ?? false,
       rating: json['imageSelection']?['rating'] ?? 0,
       score: parseScore(musiqScoreRaw),
       createdAt: parseDate(json['image']?['createdAt']) ?? DateTime.now(),
@@ -174,15 +177,19 @@ class ApiService {
     String? viewType,
     String? sortType,
     String? groupBy,
+    bool? compareViewSelected,
   }) async {
     try {
+      final queryParams = <String, dynamic>{
+        if (viewType != null) 'viewType': viewType,
+        if (sortType != null) 'sort': sortType,
+        if (groupBy != null) 'groupBy': groupBy,
+        if (compareViewSelected != null) 'compareViewSelected': compareViewSelected.toString(),
+      };
+
       final res = await _dio.get(
         '/projects/$projectId/images',
-        queryParameters: {
-          if (viewType != null) 'viewType': viewType,
-          if (sortType != null) 'sort': sortType,
-          if (groupBy != null) 'groupBy': groupBy,
-        },
+        queryParameters: queryParams,
       );
 
       final data = res.data['data'] as List<dynamic>;
@@ -193,6 +200,15 @@ class ApiService {
     }
   }
 
+  Future<void> updateImageCompareStatus(String imageId, bool compareViewSelected) async {
+    await _dio.patch(
+      '/images/$imageId',
+      data: {
+        'compareViewSelected': compareViewSelected,
+      },
+    );
+  }
+  Future<dynamic> fetchImageDetails(String id) async {}
   Future<bool> updateImageSelection({
     required String imageId,
     required bool isPicked,

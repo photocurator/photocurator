@@ -32,6 +32,7 @@ class CurrentProjectImagesProvider extends ChangeNotifier {
   List<ImageItem> trashImages = [];
   List<ImageItem> bestShotImages = [];
   List<ImageItem> pickedImages = [];
+  List<ImageItem> compareImages = [];
 
   // 그룹
   List<GroupItem> projectGroups = [];
@@ -76,6 +77,11 @@ class CurrentProjectImagesProvider extends ChangeNotifier {
         viewType: 'PICKED',
       );
 
+      compareImages = await ApiService().fetchProjectImages(
+        projectId: projectId,
+        compareViewSelected: true,
+      );
+
       // 6. 그룹 정보 및 대표 이미지 미리 다운로드
       await loadProjectGroupsWithImages(projectId);
     } catch (e) {
@@ -93,7 +99,47 @@ class CurrentProjectImagesProvider extends ChangeNotifier {
     trashImages = [];
     bestShotImages = [];
     pickedImages = [];
+    compareImages = [];
     projectGroups = [];
+    notifyListeners();
+  }
+
+  // --- Methods to update local state from Comparison View ---
+
+  void updateCompareImageLike(String imageId, bool isPicked) {
+    // Update compareImages
+    final index = compareImages.indexWhere((img) => img.id == imageId);
+    if (index != -1) {
+      compareImages[index] = compareImages[index].copyWith(isPicked: isPicked);
+    }
+
+    // Update allImages
+    final allIndex = allImages.indexWhere((img) => img.id == imageId);
+    if (allIndex != -1) {
+      allImages[allIndex] = allImages[allIndex].copyWith(isPicked: isPicked);
+    }
+
+    // Update pickedImages if needed
+    if (isPicked) {
+       // Ideally we should add it if not present, but for simplicity just triggering listeners might be enough
+       // or fetching again. But let's try to keep it simple.
+    } else {
+       pickedImages.removeWhere((img) => img.id == imageId);
+    }
+
+    notifyListeners();
+  }
+
+  void removeCompareImage(String imageId) {
+    compareImages.removeWhere((img) => img.id == imageId);
+
+    // Also update allImages to reflect that it is no longer selected for compare view?
+    // The ImageItem model has compareViewSelected field.
+    final allIndex = allImages.indexWhere((img) => img.id == imageId);
+    if (allIndex != -1) {
+      allImages[allIndex] = allImages[allIndex].copyWith(compareViewSelected: false);
+    }
+
     notifyListeners();
   }
 
@@ -134,13 +180,10 @@ class CurrentProjectImagesProvider extends ChangeNotifier {
 
 
   /// 그룹별 데이터만 따로 로드 가능 (대표 이미지 미리 다운로드 포함)
-// [수정 1] 괄호 위치 수정: 이 메서드가 클래스 안으로 들어와야 합니다.
-  /// 그룹별 데이터만 따로 로드 가능 (대표 이미지 병렬 다운로드 적용)
   Future<void> loadProjectGroupsWithImages(String projectId) async {
     try {
-      // (이미 상위에서 isLoading을 켰다면 중복 호출 주의)
-      // isLoading = true;
-      // notifyListeners();
+      //isLoading = true;
+      //notifyListeners();
 
       projectGroups =
       await GroupApiService().fetchProjectGroups(projectId: projectId);
@@ -172,7 +215,6 @@ class CurrentProjectImagesProvider extends ChangeNotifier {
     }
   }
 }
-
 
 
 
