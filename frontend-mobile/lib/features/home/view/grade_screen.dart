@@ -104,6 +104,9 @@ class _GradeScreenState extends BasePhotoContent<GradeScreen> {
                   }
                 });
               },
+              onAddToCompare: onAddToCompare,
+              onDownloadSelected: onDownloadSelected,
+              onDeleteSelected: onDeleteSelected,
               onCancel: () => setState(() => isSelecting = false),
               isAllSelected: selectedImages.length == currentImages.length,
             )
@@ -133,6 +136,7 @@ class _GradeScreenState extends BasePhotoContent<GradeScreen> {
               selectedImages: selectedImages,
               onSelectToggle: toggleSelection,
               onLongPressItem: () => setState(() => isSelecting = true),
+              onTogglePick: togglePick,
             ),
           ),
         ],

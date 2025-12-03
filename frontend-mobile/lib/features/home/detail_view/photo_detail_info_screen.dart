@@ -46,7 +46,7 @@ class PhotoDetailInfoData {
       fileSizeBytes: image['fileSizeBytes']?.toString() ?? '-',
       widthPx: image['widthPx'] is int ? image['widthPx'] as int : int.tryParse('${image['widthPx']}') ?? 0,
       heightPx: image['heightPx'] is int ? image['heightPx'] as int : int.tryParse('${image['heightPx']}') ?? 0,
-      createdAt: image['createdAt']?.toString() ?? '-',
+      createdAt: image['captureDatetime']?.toString() ?? '-',
       cameraModel: exif['cameraModel']?.toString() ?? '-',
       lensModel: exif['lensModel']?.toString() ?? '-',
       tags: tags,

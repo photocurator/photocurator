@@ -1,11 +1,17 @@
 import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:go_router/go_router.dart';
+import 'package:photo_manager/photo_manager.dart';
+import 'package:photocurator/common/widgets/photo_item.dart';
 import 'package:photocurator/common/theme/colors.dart';
 import 'package:photocurator/features/search/service/search_service.dart';
 import 'package:photocurator/features/start/service/project_service.dart';
+import 'package:photocurator/features/home/detail_view/photo_screen.dart';
+import 'package:flutter_better_auth/flutter_better_auth.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -166,6 +172,57 @@ class _SearchScreenState extends State<SearchScreen> {
     });
   }
 
+  Future<void> _togglePick(int index) async {
+    final item = _searchResults[index];
+    final newValue = !item.isPicked;
+    final updated = await _searchService.updateImageSelection(
+      imageId: item.id,
+      isPicked: newValue,
+      rating: item.rating,
+    );
+    if (!mounted) return;
+    if (updated) {
+      setState(() {
+        _searchResults[index] = SearchResultImage(
+          id: item.id,
+          url: item.url,
+          thumbnailUrl: item.thumbnailUrl,
+          qualityScore: item.qualityScore,
+          createdAt: item.createdAt,
+          isPicked: newValue,
+          rating: item.rating,
+        );
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('좋아요 상태를 변경하지 못했습니다.')),
+      );
+    }
+  }
+
+  void _openDetail(int index) {
+    final images = _searchResults
+        .map(
+          (result) => ImageItem(
+            id: result.id,
+            createdAt: result.createdAt ?? DateTime.now(),
+            qualityScore: result.qualityScore,
+            isPicked: result.isPicked,
+            rating: result.rating,
+          ),
+        )
+        .toList();
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PhotoScreen(
+          images: images,
+          initialIndex: index,
+        ),
+      ),
+    );
+  }
+
   void _toggleSelectAllItems() {
     setState(() {
       if (_selectedItemIndices.length == _searchResults.length) {
@@ -174,6 +231,113 @@ class _SearchScreenState extends State<SearchScreen> {
         _selectedItemIndices.addAll(List.generate(_searchResults.length, (i) => i));
       }
     });
+  }
+
+  List<SearchResultImage> get _selectedImages =>
+      _selectedItemIndices.map((index) => _searchResults[index]).toList();
+
+  Future<void> _likeSelected() async {
+    if (_selectedItemIndices.isEmpty) return;
+
+    final shouldPick = _selectedImages.any((img) => !img.isPicked);
+    for (final index in _selectedItemIndices) {
+      final item = _searchResults[index];
+      final updated = await _searchService.updateImageSelection(
+        imageId: item.id,
+        isPicked: shouldPick,
+        rating: item.rating,
+      );
+      if (updated) {
+        setState(() {
+          _searchResults[index] = SearchResultImage(
+            id: item.id,
+            url: item.url,
+            thumbnailUrl: item.thumbnailUrl,
+            qualityScore: item.qualityScore,
+            createdAt: item.createdAt,
+            isPicked: shouldPick,
+            rating: item.rating,
+          );
+        });
+      }
+    }
+  }
+
+  Future<void> _downloadSelected() async {
+    if (_selectedItemIndices.isEmpty) return;
+
+    final PermissionState permissionState = await PhotoManager.requestPermissionExtend();
+    if (!permissionState.isAuth) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('저장을 위해 갤러리 접근 권한이 필요합니다.')),
+      );
+      return;
+    }
+
+    final baseUrl = dotenv.env['API_BASE_URL'];
+    if (baseUrl == null || baseUrl.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('API_BASE_URL이 설정되지 않았습니다.')),
+      );
+      return;
+    }
+
+    final dio = FlutterBetterAuth.dioClient;
+    dio.options.baseUrl = baseUrl;
+
+    for (final image in _selectedImages) {
+      try {
+        final response = await dio.get(
+          '/images/${image.id}/file',
+          options: Options(responseType: ResponseType.bytes),
+        );
+        final data = response.data;
+        final bytes = data is Uint8List
+            ? data
+            : data is List<int>
+                ? Uint8List.fromList(data)
+                : null;
+        if (bytes == null) continue;
+
+        await PhotoManager.editor.saveImage(
+          bytes,
+          filename: 'photo_${image.id}',
+        );
+      } catch (e) {
+        debugPrint('Failed to download image ${image.id}: $e');
+      }
+    }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('선택한 이미지를 저장했습니다.')),
+    );
+  }
+
+  Future<void> _deleteSelected() async {
+    if (_selectedItemIndices.isEmpty) return;
+    final ids = _selectedImages.map((e) => e.id).toList();
+    final success = await ApiService().batchRejectImages(imageIds: ids);
+    if (!mounted) return;
+    if (success) {
+      setState(() {
+        _searchResults = List.from(_searchResults)
+          ..removeWhere((img) => ids.contains(img.id));
+        _selectedItemIndices.clear();
+        if (_searchResults.isEmpty) {
+          _isSelectionMode = false;
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('선택한 이미지를 삭제했습니다.')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('삭제에 실패했습니다.')),
+      );
+    }
   }
 
   @override
@@ -438,7 +602,7 @@ class _SearchScreenState extends State<SearchScreen> {
             if (_isSelectionMode) {
               _toggleItemSelection(index);
             } else {
-              // TODO: 상세 보기 이동
+              _openDetail(index);
             }
           },
           child: FutureBuilder<Uint8List?>(
@@ -468,7 +632,23 @@ class _SearchScreenState extends State<SearchScreen> {
                       height: 14,
                     ),
                   )
-                ]
+                ],
+                if (!_isSelectionMode)
+                  Positioned(
+                    right: 6,
+                    bottom: 6,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _togglePick(index),
+                      child: SvgPicture.asset(
+                        _searchResults[index].isPicked
+                            ? 'assets/icons/button/filled_heart.svg'
+                            : 'assets/icons/button/empty_heart_gray.svg',
+                        width: 20,
+                        height: 20,
+                      ),
+                    ),
+                  ),
               ]);
             },
           ),
@@ -485,28 +665,32 @@ class _SearchScreenState extends State<SearchScreen> {
           border: Border(top: BorderSide(color: AppColors.lgE9ECEF))),
       child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
         _buildActionButton(
-            '좋아요', 'assets/icons/button/empty_heart_gray.svg'),
-        _buildActionButton('복사', 'assets/icons/button/duplicate_gray.svg'),
+            '좋아요', 'assets/icons/button/empty_heart_gray.svg', _likeSelected),
         _buildActionButton(
-            '다운로드', 'assets/icons/button/arrow_collapse_down_gray.svg'),
-        _buildActionButton('삭제', 'assets/icons/button/empty_bin_gray.svg'),
+            '다운로드', 'assets/icons/button/download_gray.svg', _downloadSelected),
+        _buildActionButton(
+            '삭제', 'assets/icons/button/trash_bin_gray.svg', _deleteSelected),
       ]),
     );
   }
 
-  Widget _buildActionButton(String label, String iconPath) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        SvgPicture.asset(iconPath,
-            width: 20,
-            height: 20,
-            placeholderBuilder: (context) =>
-            const Icon(Icons.circle, size: 24, color: AppColors.dg495057)),
-        const SizedBox(height: 4),
-        Text(label,
-            style: const TextStyle(fontSize: 10, color: AppColors.dg495057))
-      ],
+  Widget _buildActionButton(String label, String iconPath, VoidCallback onTap) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SvgPicture.asset(iconPath,
+              width: 20,
+              height: 20,
+              placeholderBuilder: (context) =>
+              const Icon(Icons.circle, size: 24, color: AppColors.dg495057)),
+          const SizedBox(height: 4),
+          Text(label,
+              style: const TextStyle(fontSize: 10, color: AppColors.dg495057))
+        ],
+      ),
     );
   }
 }

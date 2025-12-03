@@ -175,6 +175,9 @@ class _SubjectScreenState extends BasePhotoContent<SubjectScreen> {
                   }
                 });
               },
+              onAddToCompare: onAddToCompare,
+              onDownloadSelected: onDownloadSelected,
+              onDeleteSelected: onDeleteSelected,
               onCancel: () => setState(() => isSelecting = false),
               isAllSelected:
               selectedImages.length == currentImages.length,
@@ -208,8 +211,8 @@ class _SubjectScreenState extends BasePhotoContent<SubjectScreen> {
               isSelecting: isSelecting,
               selectedImages: selectedImages,
               onSelectToggle: toggleSelection,
-              onLongPressItem: () =>
-                  setState(() => isSelecting = true),
+              onLongPressItem: () => setState(() => isSelecting = true),
+              onTogglePick: togglePick,
             ),
           ),
         ],

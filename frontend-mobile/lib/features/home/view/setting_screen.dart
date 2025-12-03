@@ -66,6 +66,34 @@ class _SettingScreenState extends BasePhotoContent<SettingScreen> {
 
   void cancelSelection() => setState(() => isSelecting = false);
 
+  @override
+  Future<void> onDeleteSelected() async {
+    if (selectedImages.isEmpty) {
+      cancelSelection();
+      return;
+    }
+    final ids = selectedImages.map((e) => e.id).toList();
+    final success = await ApiService().batchRejectImages(imageIds: ids);
+    if (!mounted) return;
+    if (success) {
+      context.read<CurrentProjectImagesProvider>().markAsRejected(ids);
+      setState(() {
+        tabImages.updateAll(
+          (_, list) => list.where((img) => !ids.contains(img.id)).toList(),
+        );
+        selectedImages.clear();
+        isSelecting = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('선택한 이미지를 삭제했습니다.')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('삭제에 실패했습니다.')),
+      );
+    }
+  }
+
   // ------------------------------------------------
   // 🔥 여기에서 직접 /images/{id}/details 호출
   // ------------------------------------------------
@@ -192,6 +220,9 @@ class _SettingScreenState extends BasePhotoContent<SettingScreen> {
                   }
                 });
               },
+              onAddToCompare: onAddToCompare,
+              onDownloadSelected: onDownloadSelected,
+              onDeleteSelected: onDeleteSelected,
               onCancel: () => cancelSelection(),
               isAllSelected: selectedImages.length == currentImages.length,
             )

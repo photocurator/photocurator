@@ -8,6 +8,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 class SelectModeAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final VoidCallback onSelectAll;
+  final VoidCallback onAddToCompare;
+  final VoidCallback onDownloadSelected;
+  final VoidCallback onDeleteSelected;
   final VoidCallback onCancel;
   final double deviceWidth;
   final bool isAllSelected;
@@ -15,6 +18,9 @@ class SelectModeAppBar extends StatelessWidget implements PreferredSizeWidget {
   const SelectModeAppBar({
     required this.title,
     required this.onSelectAll,
+    required this.onAddToCompare,
+    required this.onDownloadSelected,
+    required this.onDeleteSelected,
     required this.onCancel,
     required this.deviceWidth,
     required this.isAllSelected,
@@ -46,8 +52,8 @@ class SelectModeAppBar extends StatelessWidget implements PreferredSizeWidget {
         Text(
           title,
           style: TextStyle(
-            fontFamily: 'NotoSansRegular',
-            fontSize: deviceWidth * (20 / 375),
+            fontFamily: 'NotoSansMedium',
+            fontSize: deviceWidth * (12 / 375),
             color: AppColors.dg1C1F23,
             letterSpacing: 0,
           ),
@@ -59,19 +65,46 @@ class SelectModeAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 20),
-          child: GestureDetector(
-            onTap: onCancel,
-            child: Center(
-              child: Text(
-                "취소",
-                style: TextStyle(
-                  fontFamily: 'NotoSansMedium',
-                  fontSize: deviceWidth * (14 / 375),
-                  color: AppColors.lgADB5BD,
-                  letterSpacing: 0,
+          child: Row(
+            children: [
+              _SelectionActionButton(
+                label: "비교뷰 담기",
+                iconPath: 'assets/icons/button/full_screen_gray.svg',
+                deviceWidth: deviceWidth,
+                onTap: onAddToCompare,
+              ),
+              const SizedBox(width: 8),
+              _SelectionActionButton(
+                label: "다운로드",
+                iconPath: 'assets/icons/button/download_gray.svg',
+                deviceWidth: deviceWidth,
+                onTap: onDownloadSelected,
+                showLabel: false,
+              ),
+              const SizedBox(width: 8),
+              _SelectionActionButton(
+                label: "삭제",
+                iconPath: 'assets/icons/button/trash_bin_gray.svg',
+                deviceWidth: deviceWidth,
+                onTap: onDeleteSelected,
+                showLabel: false,
+              ),
+              const SizedBox(width: 12),
+              GestureDetector(
+                onTap: onCancel,
+                child: Center(
+                  child: Text(
+                    "취소",
+                    style: TextStyle(
+                      fontFamily: 'NotoSansMedium',
+                      fontSize: 14,
+                      color: AppColors.lgADB5BD,
+                      letterSpacing: 0,
+                    ),
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ],
@@ -80,6 +113,82 @@ class SelectModeAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Size get preferredSize => Size.fromHeight(deviceWidth * (50 / 375));
+}
+
+class _SelectionActionButton extends StatelessWidget {
+  final String label;
+  final String iconPath;
+  final double deviceWidth;
+  final VoidCallback onTap;
+  final bool showLabel;
+
+  const _SelectionActionButton({
+    required this.label,
+    required this.iconPath,
+    required this.deviceWidth,
+    required this.onTap,
+    this.showLabel = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final double height = deviceWidth * (30 / 375);
+    final double iconSize = deviceWidth * (14 / 375);
+    final double minWidth = showLabel ? 0 : deviceWidth * (34 / 375);
+
+    final buttonStyle = OutlinedButton.styleFrom(
+      minimumSize: Size(minWidth, height),
+      side: const BorderSide(color: AppColors.lgE9ECEF),
+      padding: showLabel
+          ? EdgeInsets.symmetric(horizontal: deviceWidth * (10 / 375))
+          : EdgeInsets.all(deviceWidth * (6 / 375)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
+      backgroundColor: AppColors.wh1,
+    );
+
+    if (showLabel) {
+      return SizedBox(
+        height: height,
+        child: OutlinedButton.icon(
+          onPressed: onTap,
+          style: buttonStyle,
+          icon: SvgPicture.asset(
+            iconPath,
+            width: iconSize,
+            height: iconSize,
+            colorFilter: const ColorFilter.mode(AppColors.dg1C1F23, BlendMode.srcIn),
+          ),
+          label: Text(
+            label,
+            style: TextStyle(
+              fontFamily: 'NotoSansMedium',
+              fontSize: deviceWidth * (12 / 375),
+              color: AppColors.dg1C1F23,
+              letterSpacing: 0,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: height,
+      child: OutlinedButton(
+        onPressed: onTap,
+        style: buttonStyle,
+        child: SvgPicture.asset(
+          iconPath,
+          width: iconSize,
+          height: iconSize,
+          colorFilter: const ColorFilter.mode(AppColors.dg1C1F23, BlendMode.srcIn),
+        ),
+      ),
+    );
+  }
 }
 
 

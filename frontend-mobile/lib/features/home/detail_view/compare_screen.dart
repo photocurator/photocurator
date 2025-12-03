@@ -1,14 +1,16 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:photocurator/common/theme/colors.dart';
 import 'package:photocurator/common/bar/view/detail_app_bar.dart';
 import 'package:photocurator/provider/current_project_provider.dart';
 import 'package:photocurator/common/widgets/photo_item.dart';
 import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_better_auth/flutter_better_auth.dart';
+import 'package:dio/dio.dart';
 
 class CompareScreen extends StatefulWidget {
   const CompareScreen({super.key});
@@ -18,6 +20,7 @@ class CompareScreen extends StatefulWidget {
 }
 
 class _CompareScreenState extends State<CompareScreen> {
+  final Map<String, Future<Uint8List?>> _imageCache = {};
   // Viewport controllers
   final TransformationController _topController = TransformationController();
   final TransformationController _bottomController = TransformationController();
@@ -91,7 +94,7 @@ class _CompareScreenState extends State<CompareScreen> {
     context.read<CurrentProjectImagesProvider>().updateCompareImageLike(item.id, newStatus);
 
     try {
-      await ApiService().updateImageSelection(item.id, isPicked: newStatus);
+      await ApiService().updateImageSelection(isPicked: newStatus, imageId: item.id);
     } catch (e) {
       // Revert if failed
       if (mounted) {
@@ -150,9 +153,9 @@ class _CompareScreenState extends State<CompareScreen> {
              padding: EdgeInsets.all(4),
              decoration: BoxDecoration(
                shape: BoxShape.circle,
-               border: Border.all(color: AppColors.mainPink, width: 1.5, style: BorderStyle.solid), // Dashed border hard to do simply, solid for now or custom painter
+               border: Border.all(color: AppColors.secondary, width: 1.5, style: BorderStyle.solid), // Dashed border hard to do simply, solid for now or custom painter
              ),
-             child: Icon(Icons.close, color: AppColors.mainPink, size: 14),
+             child: Icon(Icons.close, color: AppColors.secondary, size: 14),
           ),
           const SizedBox(width: 12.0),
           const Text("비교 뷰에서 제거 완료", style: TextStyle(color: Colors.black87)),
@@ -173,6 +176,13 @@ class _CompareScreenState extends State<CompareScreen> {
     final images = provider.compareImages;
     final deviceWidth = MediaQuery.of(context).size.width;
 
+    // Drop cached entries for images that were removed so UI updates cleanly after delete
+    final currentIds = images.map((e) => e.id).toSet();
+    _imageCache.keys
+        .where((id) => !currentIds.contains(id))
+        .toList()
+        .forEach(_imageCache.remove);
+
     // Safety check
     if (images.isEmpty) {
       return Scaffold(
@@ -192,18 +202,12 @@ class _CompareScreenState extends State<CompareScreen> {
     final bottomImage = images[_bottomIndex];
 
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: DetailAppBar(
         title: "비교 뷰",
         rightWidget: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-             IconButton(
-               icon: Icon(
-                 _isSyncOn ? Icons.link : Icons.link_off,
-                 color: _isSyncOn ? AppColors.mainPink : AppColors.lgADB5BD,
-               ),
-               onPressed: _toggleSync,
-             ),
              _buildDoneButton(context, deviceWidth),
           ],
         ),
@@ -308,7 +312,7 @@ class _CompareScreenState extends State<CompareScreen> {
             child: Container(
               margin: EdgeInsets.symmetric(horizontal: 4),
               decoration: BoxDecoration(
-                border: isSelected ? Border.all(color: AppColors.mainPink, width: 2) : null,
+                border: isSelected ? Border.all(color: AppColors.secondary, width: 2) : null,
               ),
               width: 44,
               height: 44,
@@ -320,28 +324,40 @@ class _CompareScreenState extends State<CompareScreen> {
     );
   }
 
-  Widget _buildNetworkImage(String imageId) {
-     final url = '${dotenv.env['API_BASE_URL']}/images/$imageId/file';
-     // Need auth headers. CachedNetworkImage supports headers.
-     // But `FlutterBetterAuth` manages token internally?
-     // We might need to get the token or use Image.memory via existing service if auth is complex.
-     // `ImageItemWidget` uses `_fetchImageBytes`. Let's stick to that pattern if possible or use CachedNetworkImage with headers if we can get token.
-     // For simplicity and speed, let's reuse the FutureBuilder pattern or similar.
-     // But `ImageItemWidget` is complex.
-     // Let's assume we can use headers.
+  Future<Uint8List?> _fetchImageBytes(String imageId) async {
+    return _imageCache.putIfAbsent(imageId, () async {
+      try {
+        final dio = FlutterBetterAuth.dioClient;
+        final response = await dio.get(
+          '${dotenv.env['API_BASE_URL']}/images/$imageId/thumbnail',
+          options: Options(responseType: ResponseType.bytes),
+        );
+        final bytes = response.data;
+        if (bytes is Uint8List) return bytes;
+        if (bytes is List<int>) return Uint8List.fromList(bytes);
+        return null;
+      } catch (e) {
+        debugPrint('Failed to fetch image bytes: $e');
+        return null;
+      }
+    });
+  }
 
-     return FutureBuilder<String?>(
-       future: FlutterBetterAuth.getAccessToken(),
+  Widget _buildNetworkImage(String imageId) {
+     return FutureBuilder<Uint8List?>(
+       future: _fetchImageBytes(imageId),
        builder: (context, snapshot) {
-         if (!snapshot.hasData) return Container(color: Colors.grey[200]);
-         return CachedNetworkImage(
-           imageUrl: url,
-           httpHeaders: {'Authorization': 'Bearer ${snapshot.data}'},
+         if (snapshot.connectionState == ConnectionState.waiting) {
+           return Container(color: Colors.grey[200]);
+         }
+         if (snapshot.hasError || snapshot.data == null) {
+           return const Icon(Icons.error);
+         }
+         return Image.memory(
+           snapshot.data!,
            fit: BoxFit.cover,
-           placeholder: (context, url) => Container(color: Colors.grey[200]),
-           errorWidget: (context, url, error) => Icon(Icons.error),
          );
-       }
+       },
      );
   }
 
@@ -399,7 +415,7 @@ class _CompareScreenState extends State<CompareScreen> {
             onTap: () => _handleLike(item),
             child: Icon(
               item.isPicked ? Icons.favorite : Icons.favorite_border,
-              color: item.isPicked ? AppColors.mainPink : Colors.white,
+              color: item.isPicked ? AppColors.secondary : Colors.white,
               size: 30,
               shadows: [Shadow(color: Colors.black45, blurRadius: 4)],
             ),
@@ -416,9 +432,9 @@ class _CompareScreenState extends State<CompareScreen> {
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.8),
                 shape: BoxShape.circle,
-                border: Border.all(color: AppColors.mainPink, style: BorderStyle.solid), // Dashed hard in basic container
+                border: Border.all(color: AppColors.secondary, style: BorderStyle.solid), // Dashed hard in basic container
               ),
-              child: Icon(Icons.close, color: AppColors.mainPink, size: 20),
+              child: Icon(Icons.close, color: AppColors.secondary, size: 20),
             ),
           ),
         ),

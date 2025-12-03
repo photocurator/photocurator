@@ -35,6 +35,20 @@ class _ProjectCardState extends State<ProjectCard> {
   }
 
   @override
+  void didUpdateWidget(covariant ProjectCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.project.id != widget.project.id ||
+        oldWidget.project.coverImageUrl != widget.project.coverImageUrl) {
+      if (widget.project.coverImageUrl != null && widget.project.coverImageUrl!.isNotEmpty) {
+        _imageFuture = _projectService.getImage(widget.project.coverImageUrl!);
+      } else {
+        _imageFuture = null;
+      }
+      setState(() {});
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: widget.onTap,

@@ -38,11 +38,12 @@ class QualityScore {
 class ImageItem {
   final String id;
   final bool isRejected;
-  final bool isPicked;
-  final bool compareViewSelected;
+  bool isPicked;
   final int rating;
+  final bool compareViewSelected;
   final double? score;
   final DateTime createdAt;
+  final DateTime? captureDatetime;
   final QualityScore qualityScore;
   final List<ObjectTag> objectTags;
 
@@ -54,9 +55,35 @@ class ImageItem {
     this.rating = 0,
     this.score,
     required this.createdAt,
+    this.captureDatetime,
     this.objectTags = const [],
     QualityScore? qualityScore,
   }) : qualityScore = qualityScore ?? QualityScore();
+
+  ImageItem copyWith({
+    bool? isRejected,
+    bool? isPicked,
+    bool? compareViewSelected,
+    int? rating,
+    double? score,
+    DateTime? createdAt,
+    DateTime? captureDatetime,
+    QualityScore? qualityScore,
+    List<ObjectTag>? objectTags,
+  }) {
+    return ImageItem(
+      id: id,
+      isRejected: isRejected ?? this.isRejected,
+      isPicked: isPicked ?? this.isPicked,
+      rating: rating ?? this.rating,
+      score: score ?? this.score,
+      createdAt: createdAt ?? this.createdAt,
+      captureDatetime: captureDatetime ?? this.captureDatetime,
+      objectTags: objectTags ?? this.objectTags,
+      qualityScore: qualityScore ?? this.qualityScore,
+      compareViewSelected: compareViewSelected ?? this.compareViewSelected,
+    );
+  }
 
   factory ImageItem.fromJson(Map<String, dynamic> json) {
     // 안전하게 Map<String, dynamic>으로 변환
@@ -94,6 +121,13 @@ class ImageItem {
       return null;
     }
 
+    int parseRating(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      if (value is String) return int.tryParse(value) ?? 0;
+      return 0;
+    }
+
     return ImageItem(
       id: json['image']?['id'] ?? '',
       isRejected: json['imageSelection']?['isRejected'] ?? false,
@@ -102,26 +136,9 @@ class ImageItem {
       rating: json['imageSelection']?['rating'] ?? 0,
       score: parseScore(musiqScoreRaw),
       createdAt: parseDate(json['image']?['createdAt']) ?? DateTime.now(),
+      captureDatetime: parseDate(json['image']?['captureDatetime']),
       objectTags: parseTags(json['objectTags']),
       qualityScore: QualityScore.fromJson(qualityJson),
-    );
-  }
-
-  ImageItem copyWith({
-    bool? isPicked,
-    bool? isRejected,
-    bool? compareViewSelected,
-  }) {
-    return ImageItem(
-      id: id,
-      isRejected: isRejected ?? this.isRejected,
-      isPicked: isPicked ?? this.isPicked,
-      compareViewSelected: compareViewSelected ?? this.compareViewSelected,
-      rating: rating,
-      score: score,
-      createdAt: createdAt,
-      objectTags: objectTags,
-      qualityScore: qualityScore,
     );
   }
 
@@ -190,17 +207,6 @@ class ApiService {
     }
   }
 
-  // Adding these methods as requested in plan
-  Future<void> updateImageSelection(String imageId, {bool? isPicked, int? rating}) async {
-    await _dio.put(
-      '/images/$imageId/selection',
-      data: {
-        if (isPicked != null) 'isPicked': isPicked,
-        if (rating != null) 'rating': rating,
-      },
-    );
-  }
-
   Future<void> updateImageCompareStatus(String imageId, bool compareViewSelected) async {
     await _dio.patch(
       '/images/$imageId',
@@ -209,11 +215,71 @@ class ApiService {
       },
     );
   }
+
+  Future<bool> batchUpdateCompare({
+    required List<String> imageIds,
+    required bool compareViewSelected,
+  }) async {
+    try {
+      final res = await _dio.post(
+        '/images/batch-update',
+        data: {
+          'imageIds': imageIds,
+          'compareViewSelected': compareViewSelected,
+        },
+      );
+      return res.statusCode != null && res.statusCode! < 300;
+    } catch (e) {
+      debugPrint('Error batch updating compare flag: $e');
+      return false;
+    }
+  }
   Future<dynamic> fetchImageDetails(String id) async {}
+  Future<bool> updateImageSelection({
+    required String imageId,
+    required bool isPicked,
+    int rating = 0,
+  }) async {
+    try {
+      final res = await _dio.put(
+        '/images/$imageId/selection',
+        data: {
+          'isPicked': isPicked,
+          'rating': rating,
+        },
+      );
+      return res.statusCode != null && res.statusCode! < 300;
+    } catch (e) {
+      debugPrint('Error updating selection: $e');
+      return false;
+    }
+  }
+
+  Future<bool> batchRejectImages({
+    required List<String> imageIds,
+    String reasonCode = 'BLURRY',
+    String reasonText = '',
+  }) async {
+    try {
+      final res = await _dio.post(
+        '/images/batch-reject',
+        data: {
+          'imageIds': imageIds,
+          'reasonCode': reasonCode,
+          'reasonText': reasonText,
+        },
+      );
+      return res.statusCode != null && res.statusCode! < 300;
+    } catch (e) {
+      debugPrint('Error batch rejecting images: $e');
+      return false;
+    }
+  }
 }
 
 // image_item_widget.dart
 class ImageItemWidget extends StatelessWidget {
+  static final Map<String, Future<Uint8List?>> _imageCache = {};
   final ImageItem item;
   final List<ImageItem> images; // 전체 이미지 리스트
   final int index;               // 현재 인덱스
@@ -221,6 +287,7 @@ class ImageItemWidget extends StatelessWidget {
   final bool isSelected;
   final VoidCallback? onSelectToggle;
   final VoidCallback? onLongPress;
+  final void Function(bool newValue)? onTogglePick;
   final double size;
 
   const ImageItemWidget({
@@ -232,25 +299,28 @@ class ImageItemWidget extends StatelessWidget {
     this.isSelected = false,
     this.onSelectToggle,
     this.onLongPress,
+    this.onTogglePick,
     required this.size,
   });
 
   Future<Uint8List?> _fetchImageBytes(String imageId) async {
-    try {
-      final dio = FlutterBetterAuth.dioClient; // 인증 적용된 dio
-      final response = await dio.get(
-        '${dotenv.env['API_BASE_URL']}/images/$imageId/file',
-        options: Options(responseType: ResponseType.bytes),
-      );
+    return _imageCache.putIfAbsent(imageId, () async {
+      try {
+        final dio = FlutterBetterAuth.dioClient; // 인증 적용된 dio
+        final response = await dio.get(
+          '${dotenv.env['API_BASE_URL']}/images/$imageId/thumbnail',
+          options: Options(responseType: ResponseType.bytes),
+        );
 
-      final bytes = response.data;
-      if (bytes is Uint8List) return bytes;
-      if (bytes is List<int>) return Uint8List.fromList(bytes);
-      return null;
-    } catch (e) {
-      debugPrint('Failed to fetch image bytes: $e');
-      return null;
-    }
+        final bytes = response.data;
+        if (bytes is Uint8List) return bytes;
+        if (bytes is List<int>) return Uint8List.fromList(bytes);
+        return null;
+      } catch (e) {
+        debugPrint('Failed to fetch image bytes: $e');
+        return null;
+      }
+    });
   }
 
 
@@ -307,13 +377,28 @@ class ImageItemWidget extends StatelessWidget {
                 left: 6,
                 child: Container(
                   padding: const EdgeInsets.all(2),
-                  color: Colors.white,
                   child: SvgPicture.asset(
                     isSelected
                         ? 'assets/icons/button/select_button_blue.svg'
                         : 'assets/icons/button/select_button0.svg',
                     width: 14,
                     height: 14,
+                  ),
+                ),
+              ),
+            if (!isSelecting)
+              Positioned(
+                right: 6,
+                bottom: 6,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onTogglePick?.call(!item.isPicked),
+                  child: SvgPicture.asset(
+                    item.isPicked
+                        ? 'assets/icons/button/filled_heart.svg'
+                        : 'assets/icons/button/empty_heart_gray.svg',
+                    width: 20,
+                    height: 20,
                   ),
                 ),
               ),
@@ -332,6 +417,7 @@ class PhotoGrid extends StatelessWidget {
   final List<ImageItem> selectedImages;
   final void Function(ImageItem) onSelectToggle;
   final void Function()? onLongPressItem;
+  final void Function(ImageItem item, bool newValue)? onTogglePick;
 
   const PhotoGrid({
     super.key,
@@ -340,6 +426,7 @@ class PhotoGrid extends StatelessWidget {
     this.selectedImages = const [],
     required this.onSelectToggle,
     this.onLongPressItem,
+    this.onTogglePick,
   });
 
   @override
@@ -368,6 +455,9 @@ class PhotoGrid extends StatelessWidget {
             isSelected: selectedImages.contains(item),
             onSelectToggle: () => onSelectToggle(item),
             onLongPress: onLongPressItem,
+            onTogglePick: onTogglePick == null
+                ? null
+                : (newValue) => onTogglePick!(item, newValue),
             size: itemSize,
           ),
         );

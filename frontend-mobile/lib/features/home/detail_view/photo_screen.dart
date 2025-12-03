@@ -27,6 +27,7 @@ class PhotoScreen extends StatefulWidget {
 
 class _PhotoScreenState extends State<PhotoScreen> {
   late int currentIndex;
+  final Map<String, Future<Uint8List?>> _imageBytesCache = {};
 
   @override
   void initState() {
@@ -40,6 +41,7 @@ class _PhotoScreenState extends State<PhotoScreen> {
     final currentImage = widget.images[currentIndex];
 
     return Scaffold(
+      backgroundColor: AppColors.wh1,
       appBar: DetailAppBar(
         rightWidget: GestureDetector(
           onTap: () {
@@ -165,7 +167,10 @@ class _PhotoScreenState extends State<PhotoScreen> {
               width: double.infinity,
               color: AppColors.lgE9ECEF,
               child: FutureBuilder<Uint8List?>(
-                future: _fetchImageBytes(currentImage.id),
+                future: _imageBytesCache.putIfAbsent(
+                  currentImage.id,
+                  () => _fetchImageBytes(currentImage.id),
+                ),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.done &&
                       snapshot.hasData &&

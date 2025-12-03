@@ -6,6 +6,9 @@ import 'package:photocurator/common/widgets/photo_item.dart';
 import 'package:photocurator/common/theme/colors.dart';
 import 'dart:typed_data';
 
+// Cache thumbnail futures to avoid refetching on each rebuild
+final Map<String, Future<Uint8List?>> _thumbCache = {};
+
 class PreviewBar extends StatelessWidget {
   final List<ImageItem> images;
   final ImageItem currentImage;
@@ -48,7 +51,10 @@ class PreviewBar extends StatelessWidget {
                 ),
               ),
               child: FutureBuilder<Uint8List?>(
-                future: _fetchImageBytes(img.id),
+                future: _thumbCache.putIfAbsent(
+                  img.id,
+                  () => _fetchImageBytes(img.id),
+                ),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.done &&
                       snapshot.hasData &&
@@ -84,7 +90,7 @@ Future<Uint8List?> _fetchImageBytes(String imageId) async {
   try {
     final dio = FlutterBetterAuth.dioClient; // 인증된 Dio
     final response = await dio.get(
-      '${dotenv.env['API_BASE_URL']}/images/$imageId/file',
+      '${dotenv.env['API_BASE_URL']}/images/$imageId/thumbnail',
       options: Options(responseType: ResponseType.bytes),
     );
     return response.data;

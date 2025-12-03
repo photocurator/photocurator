@@ -24,6 +24,7 @@ class CurrentProjectProvider extends ChangeNotifier {
     notifyListeners();
   }
 }
+
 class CurrentProjectImagesProvider extends ChangeNotifier {
   // 이미지
   List<ImageItem> allImages = [];
@@ -61,7 +62,9 @@ class CurrentProjectImagesProvider extends ChangeNotifier {
 
       // 4. All 이미지에서 숨긴 사진 + 휴지통 제거
       final trashIds = trash.map((e) => e.id).toList();
-      allImages = all.where((img) => !img.isRejected && !trashIds.contains(img.id)).toList();
+      allImages =
+          all.where((img) => !img.isRejected && !trashIds.contains(img.id))
+              .toList();
 
       // 5. Trash, BestShot, Picked 리스트
       trashImages = trash;
@@ -140,34 +143,98 @@ class CurrentProjectImagesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updatePickStatus(String imageId, bool isPicked) {
+    ImageItem mapper(ImageItem img) =>
+        img.id == imageId ? img.copyWith(isPicked: isPicked) : img;
+
+    allImages = allImages.map(mapper).toList();
+    hiddenImages = hiddenImages.map(mapper).toList();
+    trashImages = trashImages.map(mapper).toList();
+    bestShotImages = bestShotImages.map(mapper).toList();
+    pickedImages = allImages.where((img) => img.isPicked).toList();
+    notifyListeners();
+  }
+
+  void updateCompareSelection(List<ImageItem> items, bool compareViewSelected) {
+    final ids = items.map((e) => e.id).toSet();
+    ImageItem mapper(ImageItem img) =>
+        ids.contains(img.id) ? img.copyWith(compareViewSelected: compareViewSelected) : img;
+
+    allImages = allImages.map(mapper).toList();
+    hiddenImages = hiddenImages.map(mapper).toList();
+    trashImages = trashImages.map(mapper).toList();
+    bestShotImages = bestShotImages.map(mapper).toList();
+    pickedImages = pickedImages.map(mapper).toList();
+
+    if (compareViewSelected) {
+      // add to compareImages if not present
+      final existingIds = compareImages.map((e) => e.id).toSet();
+      final toAdd = items.where((e) => !existingIds.contains(e.id)).toList();
+      compareImages = [...compareImages, ...toAdd];
+    } else {
+      compareImages = compareImages.where((img) => !ids.contains(img.id)).toList();
+    }
+    notifyListeners();
+  }
+
+  void markAsRejected(List<String> imageIds) {
+    final rejected = allImages
+        .where((img) => imageIds.contains(img.id))
+        .map((img) => img.copyWith(isRejected: true))
+        .toList();
+
+    ImageItem mapper(ImageItem img) =>
+        imageIds.contains(img.id) ? img.copyWith(isRejected: true) : img;
+
+    allImages =
+        allImages.map(mapper).where((img) => !img.isRejected).toList();
+    bestShotImages =
+        bestShotImages.map(mapper).where((img) => !img.isRejected).toList();
+    pickedImages =
+        pickedImages.map(mapper).where((img) => !img.isRejected).toList();
+    trashImages = trashImages.map(mapper).toList();
+    hiddenImages = [
+      ...hiddenImages.where((img) => !imageIds.contains(img.id)),
+      ...rejected,
+    ];
+    notifyListeners();
+  }
+
+
   /// 그룹별 데이터만 따로 로드 가능 (대표 이미지 미리 다운로드 포함)
   Future<void> loadProjectGroupsWithImages(String projectId) async {
     try {
-      isLoading = true;
-      notifyListeners();
+      //isLoading = true;
+      //notifyListeners();
 
-      projectGroups = await GroupApiService().fetchProjectGroups(projectId: projectId);
+      projectGroups =
+      await GroupApiService().fetchProjectGroups(projectId: projectId);
 
       final dio = FlutterBetterAuth.dioClient;
+      final baseUrl = dotenv.env['API_BASE_URL'];
 
-      for (var group in projectGroups) {
+      // [수정 2] Future.wait를 사용하여 병렬 다운로드 (속도 개선)
+      await Future.wait(projectGroups.map((group) async {
         try {
-          final res = await dio.get(
-            '${dotenv.env['API_BASE_URL']}/images/${group.representativeImageId}/file',
-            options: Options(responseType: ResponseType.bytes),
-          );
-          group.imageBytes = res.data;
+          final repId = group.representativeImageId;
+          if (repId != null && repId.isNotEmpty) {
+            final res = await dio.get(
+              '$baseUrl/images/$repId/thumbnail',
+              options: Options(responseType: ResponseType.bytes),
+            );
+            group.imageBytes = res.data;
+          }
         } catch (e) {
-          debugPrint('그룹 이미지 다운로드 실패: ${group.id}, $e');
+          debugPrint('그룹 이미지(${group.id}) 다운로드 실패: $e');
           group.imageBytes = null;
         }
-      }
+      }));
     } catch (e) {
       debugPrint('그룹 로드 실패: $e');
       projectGroups = [];
     } finally {
-      isLoading = false;
-      notifyListeners();
+      // isLoading = false;
+      notifyListeners(); // 데이터 변경 알림
     }
   }
 }
@@ -178,13 +245,13 @@ class GroupItem {
   final String id;
   final String projectId;
   final String groupType;
-  final String representativeImageId;
-  final DateTime timeRangeStart;
-  final DateTime timeRangeEnd;
+  final String? representativeImageId;
+  final DateTime? timeRangeStart;
+  final DateTime? timeRangeEnd;
   final String? similarityScore;
   final int memberCount;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   Uint8List? imageBytes; // 여기 추가
 
@@ -192,28 +259,40 @@ class GroupItem {
     required this.id,
     required this.projectId,
     required this.groupType,
-    required this.representativeImageId,
-    required this.timeRangeStart,
-    required this.timeRangeEnd,
+    this.representativeImageId,
+    this.timeRangeStart,
+    this.timeRangeEnd,
     this.similarityScore,
     required this.memberCount,
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt,
+    this.updatedAt,
     this.imageBytes,
   });
 
   factory GroupItem.fromJson(Map<String, dynamic> json) {
+    DateTime? parseDate(dynamic value) {
+      if (value == null) return null;
+      if (value is String && value.isNotEmpty) {
+        try {
+          return DateTime.parse(value);
+        } catch (_) {
+          return null;
+        }
+      }
+      return null;
+    }
+
     return GroupItem(
-      id: json['id'],
-      projectId: json['projectId'],
-      groupType: json['groupType'],
+      id: json['id'] ?? '',
+      projectId: json['projectId'] ?? '',
+      groupType: json['groupType'] ?? '',
       representativeImageId: json['representativeImageId'],
-      timeRangeStart: DateTime.parse(json['timeRangeStart']),
-      timeRangeEnd: DateTime.parse(json['timeRangeEnd']),
+      timeRangeStart: parseDate(json['timeRangeStart']),
+      timeRangeEnd: parseDate(json['timeRangeEnd']),
       similarityScore: json['similarityScore'],
       memberCount: json['memberCount'] ?? 0,
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
+      createdAt: parseDate(json['createdAt']),
+      updatedAt: parseDate(json['updatedAt']),
     );
   }
 }
@@ -237,7 +316,15 @@ class GroupApiService {
     try {
       final res = await _dio.get('/projects/$projectId/groups');
 
-      final data = res.data['data'] as List<dynamic>;
+      final dynamic body = res.data;
+      List<dynamic> data;
+      if (body is List) {
+        data = body;
+      } else if (body is Map && body['data'] is List) {
+        data = body['data'] as List<dynamic>;
+      } else {
+        data = const [];
+      }
 
       return data
           .map((e) => GroupItem.fromJson(Map<String, dynamic>.from(e)))
