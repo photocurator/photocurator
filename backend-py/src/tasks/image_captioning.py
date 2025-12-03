@@ -17,7 +17,7 @@ class ImageCaptioningTask(ImageProcessingTask):
 
     @property
     def version(self):
-        return "Florence-2-base-ft"
+        return "Florence-2-base-ft-02"
 
     def check_already_processed(self, cur, image_id: str) -> bool:
         cur.execute(
@@ -99,21 +99,57 @@ class ImageCaptioningTask(ImageProcessingTask):
 
             generated_text = self.processor.batch_decode(generated_ids, skip_special_tokens=False)[0]
 
-            # The generated text will be in the format of '<MORE_DETAILED_CAPTION>The caption text'.
-            # We need to parse it to extract only the caption.
-            caption = generated_text.split("</s>")[0].split(prompt)[-1]
+            # Use post_process_generation for robust parsing
+            try:
+                parsed_result = self.processor.post_process_generation(
+                    generated_text, 
+                    task=prompt, 
+                    image_size=(image.width, image.height)
+                )
+                # parsed_result is a dictionary like {'<MORE_DETAILED_CAPTION>': 'caption text'}
+                caption = parsed_result.get(prompt, "")
+            except Exception:
+                # Fallback to manual parsing if post_process_generation is not available or fails
+                caption = generated_text.split("</s>")[0].split(prompt)[-1]
 
+            print(f"Caption: {caption.strip()}")
             cur.execute(
                 """
                 INSERT INTO image_caption (id, image_id, caption, model_version, created_at, updated_at)
                 VALUES (%s, %s, %s, %s, NOW(), NOW())
                 """,
-                (str(uuid.uuid4()), image_id, caption.strip(), "Florence-2-base-ft")
+                (str(uuid.uuid4()), image_id, caption.strip(), self.version)
             )
 
             conn.commit()
+        except Exception as e:
+            print(f"Error generating caption for {image_id}: {e}")
+            return
         finally:
             if cur:
                 cur.close()
             if conn:
                 release_db_connection(conn)
+
+if __name__ == "__main__":
+    import sys
+    import logging
+    
+    # Configure logging to see output
+    logging.basicConfig(level=logging.INFO)
+    
+    if len(sys.argv) < 2:
+        print("Usage: python -m src.tasks.image_captioning <image_id>")
+        print("This script defines the ImageCaptioningTask for the worker.")
+        print("To test it, provide an image_id as an argument. Ensure you have DB connection.")
+    else:
+        image_id = sys.argv[1]
+        print(f"Running ImageCaptioningTask for image_id: {image_id}")
+        task = ImageCaptioningTask()
+        try:
+            task.run(image_id)
+            print("Task completed successfully.")
+        except Exception as e:
+            print(f"Task failed: {e}")
+            import traceback
+            traceback.print_exc()

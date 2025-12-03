@@ -43,6 +43,7 @@ def register_tasks():
         if filename.endswith(".py") and not filename.startswith("__"):
             module_name = f"src.tasks.{filename[:-3]}"
             importlib.import_module(module_name)
+            print(f"Registered task: {module_name}")
 
 register_tasks()
 

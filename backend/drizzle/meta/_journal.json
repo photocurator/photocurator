@@ -50,6 +50,13 @@
       "when": 1764739694523,
       "tag": "0006_zippy_pixie",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1764767734731,
+      "tag": "0007_burly_squadron_supreme",
+      "breakpoints": true
     }
   ]
 }

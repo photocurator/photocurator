@@ -8,7 +8,7 @@ import type { RouteHandler } from '@hono/zod-openapi';
 import { z } from 'zod';
 import { db } from '../db';
 import { project, image, qualityScore, imageSelection, objectTag, analysisJob, analysisJobItem, imageGroup, imageGroupMembership } from '../db/schema';
-import { eq, and, gt, desc, inArray, sql } from 'drizzle-orm';
+import { eq, and, gt, desc, inArray, sql, isNull } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 import { mkdir, writeFile } from 'fs/promises';
 import { randomUUID } from 'crypto';
@@ -451,7 +451,7 @@ const uploadProjectImagesHandler: AppRouteHandler<typeof uploadProjectImagesRout
         const jobItemsToInsert: typeof analysisJobItem.$inferInsert[] = [];
         const batchRequestRequests: { image_id: string; task_name: string; job_item_id: string }[] = [];
 
-        const tasks = ['exif_analysis', 'similarity_grouping'];
+        const tasks = ['thumbnail_generation', 'exif_analysis'];
         for (const imgId of uploadedImageIds) {
             for (const task of tasks) {
                 const jobItemId = randomUUID();
@@ -796,6 +796,101 @@ const ImageGroupSchema = z.object({
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
+
+
+const generateThumbnailsRoute = createRoute({
+    method: 'post',
+    path: '/{projectId}/generate-thumbnails',
+    summary: 'Trigger thumbnail generation',
+    description: 'Triggers thumbnail generation for all images in a project that do not have one.',
+    request: {
+        params: z.object({
+            projectId: z.uuid(),
+        }),
+    },
+    responses: {
+        202: {
+            description: 'Thumbnail generation triggered.',
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        message: z.string(),
+                    }),
+                },
+            },
+        },
+        401: {
+            description: 'Unauthorized access.',
+            content: {
+                'application/json': {
+                schema: ErrorSchema,
+                },
+            },
+        },
+    },
+});
+
+const generateThumbnailsHandler: AppRouteHandler<typeof generateThumbnailsRoute> = async (c) => {
+    const { projectId } = c.req.param();
+    const user = c.get('user');
+
+    if (!user) {
+        return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    // Find images without thumbnails
+    const imagesWithoutThumbnails = await db
+        .select({ id: image.id })
+        .from(image)
+        .where(and(eq(image.projectId, projectId), isNull(image.thumbnailPath)));
+
+    if (imagesWithoutThumbnails.length === 0) {
+        return c.json({ message: 'All images already have thumbnails.' }, 202);
+    }
+
+    const jobId = randomUUID();
+    await db.insert(analysisJob).values({
+        id: jobId,
+        projectId,
+        userId: user.id,
+        jobType: 'thumbnail_generation',
+    });
+
+    const jobItemsToInsert: typeof analysisJobItem.$inferInsert[] = [];
+    const batchRequestRequests: { image_id: string; task_name: string; job_item_id: string }[] = [];
+
+    for (const img of imagesWithoutThumbnails) {
+        const jobItemId = randomUUID();
+        jobItemsToInsert.push({
+            id: jobItemId,
+            jobId: jobId,
+            imageId: img.id,
+        });
+        batchRequestRequests.push({
+            image_id: img.id,
+            task_name: 'thumbnail_generation',
+            job_item_id: jobItemId,
+        });
+    }
+
+    // Chunk inserts
+    const chunkSize = 100;
+    for (let i = 0; i < jobItemsToInsert.length; i += chunkSize) {
+        await db.insert(analysisJobItem).values(jobItemsToInsert.slice(i, i + chunkSize));
+    }
+
+    const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:8001';
+    fetch(`${aiServiceUrl}/batch-analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requests: batchRequestRequests }),
+    }).catch(err => console.error('Failed to trigger thumbnail generation:', err));
+
+    return c.json({ message: `Triggered thumbnail generation for ${imagesWithoutThumbnails.length} images.` }, 202);
+};
+
+app.openapi(generateThumbnailsRoute, generateThumbnailsHandler);
+
 
 const getProjectGroupsRoute = createRoute({
   method: 'get',
