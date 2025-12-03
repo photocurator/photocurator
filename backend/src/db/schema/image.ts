@@ -2,7 +2,7 @@
  * @module db/schema/image
  * This file defines the database schema for images, including their metadata, EXIF data, GPS coordinates, and user selections.
  */
-import { pgTable, text, timestamp, boolean, bigint, integer, decimal } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, bigint, integer, decimal, unique } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { project } from "./project";
 import { user } from "./auth";
@@ -106,7 +106,9 @@ export const imageSelection = pgTable("image_selection", {
     .$defaultFn(() => new Date())
     .$onUpdate(() => new Date())
     .notNull(),
-});
+}, (t) => ([
+  unique('unique_selection').on(t.imageId, t.userId),
+]));
 
 // Relations
 /**

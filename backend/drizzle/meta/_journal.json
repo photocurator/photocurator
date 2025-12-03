@@ -43,6 +43,13 @@
       "when": 1764541695956,
       "tag": "0005_windy_midnight",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1764739694523,
+      "tag": "0006_zippy_pixie",
+      "breakpoints": true
     }
   ]
 }

@@ -829,7 +829,7 @@ const BatchRejectResponseSchema = z.object({
     error: z.string(),
   })),
 });
-
+ 
 const postBatchImageRejectRoute = createRoute({
   method: 'post',
   path: '/batch-reject',
@@ -958,6 +958,94 @@ app.openapi(postBatchImageRejectRoute, async (c) => {
   }
 
   return c.json({ succeeded, failed });
+});
+
+const BatchUpdateImagesSchema = z.object({
+    imageIds: z.array(z.uuid()),
+    compareViewSelected: z.boolean(),
+});
+
+const postBatchUpdateImagesRoute = createRoute({
+    method: 'post',
+    path: '/batch-update',
+    summary: 'Batch update images',
+    description: 'Updates the `compareViewSelected` status for multiple images.',
+    request: {
+        body: {
+            content: {
+                'application/json': {
+                    schema: BatchUpdateImagesSchema,
+                },
+            },
+        },
+    },
+    responses: {
+        200: {
+            description: 'Batch update results.',
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        updatedCount: z.number(),
+                        message: z.string(),
+                    }),
+                },
+            },
+        },
+        401: {
+             description: 'Unauthorized access.',
+             content: {
+                 'application/json': {
+                 schema: ErrorSchema,
+                 },
+             },
+         },
+    }
+});
+
+app.openapi(postBatchUpdateImagesRoute, async (c) => {
+    const { imageIds, compareViewSelected } = c.req.valid('json');
+    const user = c.get('user');
+
+    if (!user) {
+        return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    if (imageIds.length === 0) {
+        return c.json({ updatedCount: 0, message: 'No images provided' }, 200);
+    }
+
+    // 1. Identify valid images (user owns image OR user owns project containing image)
+    const validImages = await db
+        .select({ id: imageTable.id })
+        .from(imageTable)
+        .leftJoin(project, eq(imageTable.projectId, project.id))
+        .where(and(
+            inArray(imageTable.id, imageIds),
+            or(
+                eq(imageTable.userId, user.id),
+                and(
+                    eq(project.userId, user.id),
+                    eq(imageTable.projectId, project.id)
+                )
+            )
+        ));
+
+    const validImageIds = validImages.map(i => i.id);
+
+    if (validImageIds.length === 0) {
+        return c.json({ updatedCount: 0, message: 'No valid images found or unauthorized' }, 200);
+    }
+
+    // 2. Perform update
+    await db
+        .update(imageTable)
+        .set({ compareViewSelected })
+        .where(inArray(imageTable.id, validImageIds));
+
+    return c.json({
+        updatedCount: validImageIds.length,
+        message: 'Images updated successfully'
+    }, 200);
 });
 
 export default app;
