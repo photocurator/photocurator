@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_better_auth/flutter_better_auth.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:async';
+import 'package:photocurator/common/theme/colors.dart';
 
 Route _fadeRoute(Widget page) {
   return PageRouteBuilder(
@@ -15,7 +17,6 @@ Route _fadeRoute(Widget page) {
     },
   );
 }
-
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -57,7 +58,42 @@ class _SplashScreenState extends State<SplashScreen> {
         ),
         child: Stack(
           alignment: Alignment.center,
-          children: [],
+          children: [
+            Transform.translate(
+              offset: const Offset(0, -20),
+              child: Stack(
+                children: [
+                  // 그림자(안쪽 그림자처럼 보이게 만들기)
+                  ShaderMask(
+                    shaderCallback: (bounds) {
+                      return LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.black.withOpacity(0.8),
+                          Colors.transparent,
+                        ],
+                      ).createShader(bounds);
+                    },
+                    blendMode: BlendMode.srcIn,
+                    child: SvgPicture.asset(
+                      "assets/icons/button/logo_one_color.svg",
+                      width: 64,
+                      height: 64,
+                      colorFilter: ColorFilter.mode(Color(0xFF8A8EBA), BlendMode.srcIn),
+                    ),
+                  ),
+
+                  SvgPicture.asset(
+                    "assets/icons/button/logo_one_color.svg",
+                    width: 64,
+                    height: 64,
+                    colorFilter: ColorFilter.mode(AppColors.wh1, BlendMode.srcIn),
+                  ),
+                ],
+              )
+            )
+          ],
         ),
       ),
     );
@@ -103,10 +139,51 @@ class _NextScreenState extends State<NextScreen> {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            Image.asset(
-              "assets/icons/button/logo_splash.png", // 로고 경로
-              width: 64,
-            ),
+            Transform.translate(
+              offset: const Offset(0, -20),
+              child: Stack(
+                children: [
+                  // 그림자(안쪽 그림자처럼 보이게 만들기)
+                  ShaderMask(
+                    shaderCallback: (bounds) {
+                      return LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.black.withOpacity(0.6),
+                          Colors.transparent,
+                        ],
+                      ).createShader(bounds);
+                    },
+                    blendMode: BlendMode.srcIn,
+                    child: Text(
+                      "Photocurator",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'Labrada',
+                        fontSize: 30,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF8A8EBA), // 그림자 색
+                        height: 1.3,
+                      ),
+                    ),
+                  ),
+
+                  // 원본 텍스트
+                  Text(
+                    "Photocurator",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'Labrada',
+                      fontSize: 30,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.wh1,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              )
+            )
           ],
         ),
       ),
@@ -123,9 +200,7 @@ class _LastScreenState extends State<LastScreen> {
   @override
   void initState() {
     super.initState();
-    Timer(Duration(seconds: 2), () {
-
-    });
+    Timer(Duration(seconds: 2), () {});
     _decideInitialRoute();
   }
 
@@ -180,9 +255,21 @@ class _LastScreenState extends State<LastScreen> {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            Image.asset(
-              "assets/icons/button/logo_text.png",
-              width: 250,
+            Transform.translate(
+              offset: const Offset(0, -20),
+              child: Text(
+                "포토큐레이터에 \n오신 것을 환영합니다",
+                textAlign: TextAlign.center, // ← 중앙 정렬
+                style: TextStyle(
+                  fontFamily: 'NotoSansMedium',
+                  // 노토산스미디움
+                  fontSize: 26,
+                  // 폰트 크기
+                  color: AppColors.wh1,
+                  letterSpacing: 0,
+                  height: 1.3,
+                ),
+              ),
             ),
           ],
         ),
