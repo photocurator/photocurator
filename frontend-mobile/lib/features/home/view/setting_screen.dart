@@ -220,9 +220,11 @@ class _SettingScreenState extends BasePhotoContent<SettingScreen> {
                   }
                 });
               },
+              onAddToCompare: onAddToCompare,
+              onDownloadSelected: onDownloadSelected,
               onDeleteSelected: onDeleteSelected,
               onCancel: () => cancelSelection(),
-              isAllSelected: selectedImages.length == currentImages.length, onAddToCompare: () {  },
+              isAllSelected: selectedImages.length == currentImages.length,
             )
                 : SortingAppBar(
               screenTitle: screenTitle,

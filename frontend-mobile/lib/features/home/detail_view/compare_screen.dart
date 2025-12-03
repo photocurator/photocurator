@@ -195,18 +195,12 @@ class _CompareScreenState extends State<CompareScreen> {
     final bottomImage = images[_bottomIndex];
 
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: DetailAppBar(
         title: "비교 뷰",
         rightWidget: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-             IconButton(
-               icon: Icon(
-                 _isSyncOn ? Icons.link : Icons.link_off,
-                 color: _isSyncOn ? AppColors.secondary : AppColors.lgADB5BD,
-               ),
-               onPressed: _toggleSync,
-             ),
              _buildDoneButton(context, deviceWidth),
           ],
         ),

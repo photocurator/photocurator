@@ -41,6 +41,7 @@ class _PhotoScreenState extends State<PhotoScreen> {
     final currentImage = widget.images[currentIndex];
 
     return Scaffold(
+      backgroundColor: AppColors.wh1,
       appBar: DetailAppBar(
         rightWidget: GestureDetector(
           onTap: () {

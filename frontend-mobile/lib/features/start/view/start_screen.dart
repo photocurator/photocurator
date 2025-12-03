@@ -261,6 +261,7 @@ class _StartScreenState extends State<StartScreen> {
       itemCount: projects.length,
       itemBuilder: (context, index) {
         return ProjectCard(
+          key: ValueKey(projects[index].id),
           project: projects[index],
           isRecent: false,
           onTap: () async {
@@ -290,6 +291,7 @@ class _StartScreenState extends State<StartScreen> {
       itemCount: projects.length,
       itemBuilder: (context, index) {
         return ProjectListItem(
+          key: ValueKey(projects[index].id),
           project: projects[index],
           onTap: () async {
             // Provider에 현재 프로젝트 세팅

@@ -1,11 +1,16 @@
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_better_auth/core/flutter_better_auth.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:photo_manager/photo_manager.dart';
 import 'package:photocurator/common/widgets/photo_item.dart';
 import 'package:photocurator/common/widgets/group_card.dart';
 import 'package:photocurator/common/widgets/photo_screen_widget.dart';
 import 'package:photocurator/features/start/service/project_service.dart'; // ImageItem import 필요
 import 'package:photocurator/common/theme/colors.dart';
+import 'package:provider/provider.dart';
 import '../../../provider/current_project_provider.dart';
 import 'package:photocurator/common/bar/view/detail_app_bar.dart';
 import 'package:photocurator/common/bar/view/selection_bar.dart';
@@ -129,6 +134,99 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     }
   }
 
+  Future<void> _addToCompare() async {
+    if (selectedImages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('선택한 이미지가 없습니다.')),
+      );
+      return;
+    }
+    final ids = selectedImages.map((e) => e.id).toList();
+    final success = await _apiService.batchUpdateCompare(
+      imageIds: ids,
+      compareViewSelected: true,
+    );
+    if (!mounted) return;
+    if (success) {
+      context
+          .read<CurrentProjectImagesProvider>()
+          .updateCompareSelection(selectedImages, true);
+      setState(() {
+        groupImages = groupImages
+            .map((img) => ids.contains(img.id)
+                ? img.copyWith(compareViewSelected: true)
+                : img)
+            .toList();
+        cancelSelection();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('비교뷰에 담았습니다.')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('비교뷰 담기에 실패했습니다.')),
+      );
+    }
+  }
+
+  Future<void> _downloadSelected() async {
+    if (selectedImages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('다운로드할 이미지를 선택해주세요.')),
+      );
+      return;
+    }
+
+    final PermissionState permissionState = await PhotoManager.requestPermissionExtend();
+    if (!permissionState.isAuth) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('저장을 위해 갤러리 접근 권한이 필요합니다.')),
+      );
+      return;
+    }
+
+    final baseUrl = dotenv.env['API_BASE_URL'];
+    if (baseUrl == null || baseUrl.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('API_BASE_URL이 설정되지 않았습니다.')),
+      );
+      return;
+    }
+
+    final dio = FlutterBetterAuth.dioClient;
+    dio.options.baseUrl = baseUrl;
+
+    for (final image in selectedImages) {
+      try {
+        final response = await dio.get(
+          '/images/${image.id}/file',
+          options: Options(responseType: ResponseType.bytes),
+        );
+        final data = response.data;
+        final bytes = data is Uint8List
+            ? data
+            : data is List<int>
+                ? Uint8List.fromList(data)
+                : null;
+        if (bytes == null) continue;
+
+        await PhotoManager.editor.saveImage(
+          bytes,
+          filename: 'photo_${image.id}',
+        );
+      } catch (e) {
+        debugPrint('Failed to download image ${image.id}: $e');
+      }
+    }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('선택한 이미지를 저장했습니다.')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final deviceWidth = MediaQuery.of(context).size.width;
@@ -149,11 +247,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           }
           setState(() {});
         },
-        onAddToCompare: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('비교뷰 담기 준비 중입니다.')),
-          );
-        },
+        onAddToCompare: _addToCompare,
+        onDownloadSelected: _downloadSelected,
         onDeleteSelected: _deleteSelected,
         onCancel: cancelSelection,
         isAllSelected: selectedImages.length == groupImages.length,

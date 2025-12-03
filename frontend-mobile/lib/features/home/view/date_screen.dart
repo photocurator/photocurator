@@ -144,6 +144,7 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
                 });
               },
               onAddToCompare: onAddToCompare,
+              onDownloadSelected: onDownloadSelected,
               onDeleteSelected: onDeleteSelected,
               onCancel: () => setState(() => isSelecting = false),
               isAllSelected:
@@ -291,6 +292,8 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
                   }
                 });
               },
+              onAddToCompare: onAddToCompare,
+              onDownloadSelected: onDownloadSelected,
               onDeleteSelected: onDeleteSelected,
               onCancel: () => setState(() => isSelecting = false),
               isAllSelected:

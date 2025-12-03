@@ -210,6 +210,25 @@ class ApiService {
       },
     );
   }
+
+  Future<bool> batchUpdateCompare({
+    required List<String> imageIds,
+    required bool compareViewSelected,
+  }) async {
+    try {
+      final res = await _dio.post(
+        '/images/batch-update',
+        data: {
+          'imageIds': imageIds,
+          'compareViewSelected': compareViewSelected,
+        },
+      );
+      return res.statusCode != null && res.statusCode! < 300;
+    } catch (e) {
+      debugPrint('Error batch updating compare flag: $e');
+      return false;
+    }
+  }
   Future<dynamic> fetchImageDetails(String id) async {}
   Future<bool> updateImageSelection({
     required String imageId,

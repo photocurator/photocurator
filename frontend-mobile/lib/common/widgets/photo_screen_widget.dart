@@ -1,19 +1,80 @@
 // photo_screen_widget.dart
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:photo_manager/photo_manager.dart';
 import 'package:provider/provider.dart';
-import '../../../provider/current_project_provider.dart';
 import './photo_item.dart';
 import './action_bar.dart';
 import 'package:photocurator/common/bar/view/detail_app_bar.dart';
 import 'package:photocurator/common/bar/view/selection_bar.dart';
 import 'package:photocurator/common/theme/colors.dart';
-
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:flutter_better_auth/flutter_better_auth.dart';
 import 'package:photocurator/provider/current_project_provider.dart';
+
+Future<void> _downloadSelectedImages({
+  required State state,
+  required List<ImageItem> selectedImages,
+}) async {
+  if (selectedImages.isEmpty) {
+    ScaffoldMessenger.of(state.context).showSnackBar(
+      const SnackBar(content: Text('다운로드할 이미지를 선택해주세요.')),
+    );
+    return;
+  }
+
+  final PermissionState permissionState = await PhotoManager.requestPermissionExtend();
+  if (!permissionState.isAuth) {
+    if (!state.mounted) return;
+    ScaffoldMessenger.of(state.context).showSnackBar(
+      const SnackBar(content: Text('저장을 위해 갤러리 접근 권한이 필요합니다.')),
+    );
+    return;
+  }
+
+  final baseUrl = dotenv.env['API_BASE_URL'];
+  if (baseUrl == null || baseUrl.isEmpty) {
+    if (!state.mounted) return;
+    ScaffoldMessenger.of(state.context).showSnackBar(
+      const SnackBar(content: Text('API_BASE_URL이 설정되지 않았습니다.')),
+    );
+    return;
+  }
+
+  final dio = FlutterBetterAuth.dioClient;
+  dio.options.baseUrl = baseUrl;
+
+  for (final image in selectedImages) {
+    try {
+      final response = await dio.get(
+        '/images/${image.id}/file',
+        options: Options(responseType: ResponseType.bytes),
+      );
+      final data = response.data;
+      final bytes = data is Uint8List
+          ? data
+          : data is List<int>
+              ? Uint8List.fromList(data)
+              : null;
+      if (bytes == null) continue;
+
+      await PhotoManager.editor.saveImage(
+        bytes,
+        filename: 'photo_${image.id}',
+      );
+    } catch (e) {
+      debugPrint('Failed to download image ${image.id}: $e');
+    }
+  }
+
+  if (!state.mounted) return;
+  ScaffoldMessenger.of(state.context).showSnackBar(
+    const SnackBar(content: Text('선택한 이미지를 저장했습니다.')),
+  );
+}
 
 abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T> {
   String get screenTitle;
@@ -23,10 +84,36 @@ abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T> {
   bool isSelecting = false;
   List<ImageItem> selectedImages = [];
 
-  void onAddToCompare() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('비교뷰 담기 준비 중입니다.')),
+  Future<void> onAddToCompare() async {
+    if (selectedImages.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('선택한 이미지가 없습니다.')));
+      return;
+    }
+    final ids = selectedImages.map((e) => e.id).toList();
+    final success = await ApiService().batchUpdateCompare(
+      imageIds: ids,
+      compareViewSelected: true,
     );
+    if (!mounted) return;
+    if (success) {
+      context
+          .read<CurrentProjectImagesProvider>()
+          .updateCompareSelection(selectedImages, true);
+      setState(() {
+        isSelecting = false;
+        selectedImages.clear();
+      });
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('비교뷰에 담았습니다.')));
+    } else {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('비교뷰 담기에 실패했습니다.')));
+    }
+  }
+
+  Future<void> onDownloadSelected() async {
+    await _downloadSelectedImages(state: this, selectedImages: selectedImages);
   }
 
   Future<void> refreshImages() async {
@@ -144,6 +231,7 @@ abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T> {
           });
         },
         onAddToCompare: onAddToCompare,
+        onDownloadSelected: onDownloadSelected,
         onDeleteSelected: onDeleteSelected,
         onCancel: () => cancelSelection(),
         isAllSelected: selectedImages.length == images.length,
@@ -208,10 +296,39 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T> {
   bool isSelecting = false;
   List<ImageItem> selectedImages = [];
 
-  void onAddToCompare() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('비교뷰 담기 준비 중입니다.')),
+  Future<void> onAddToCompare() async {
+    if (selectedImages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('선택한 이미지가 없습니다.')),
+      );
+      return;
+    }
+    final ids = selectedImages.map((e) => e.id).toList();
+    final success = await ApiService().batchUpdateCompare(
+      imageIds: ids,
+      compareViewSelected: true,
     );
+    if (!mounted) return;
+    if (success) {
+      context
+          .read<CurrentProjectImagesProvider>()
+          .updateCompareSelection(selectedImages, true);
+      setState(() {
+        isSelecting = false;
+        selectedImages.clear();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('비교뷰에 담았습니다.')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('비교뷰 담기에 실패했습니다.')),
+      );
+    }
+  }
+
+  Future<void> onDownloadSelected() async {
+    await _downloadSelectedImages(state: this, selectedImages: selectedImages);
   }
 
   Future<void> refreshImages() async {
@@ -333,6 +450,7 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T> {
           });
         },
         onAddToCompare: onAddToCompare,
+        onDownloadSelected: onDownloadSelected,
         onDeleteSelected: onDeleteSelected,
         onCancel: () => cancelSelection(),
         isAllSelected: selectedImages.length == images.length,

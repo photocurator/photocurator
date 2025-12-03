@@ -155,6 +155,28 @@ class CurrentProjectImagesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateCompareSelection(List<ImageItem> items, bool compareViewSelected) {
+    final ids = items.map((e) => e.id).toSet();
+    ImageItem mapper(ImageItem img) =>
+        ids.contains(img.id) ? img.copyWith(compareViewSelected: compareViewSelected) : img;
+
+    allImages = allImages.map(mapper).toList();
+    hiddenImages = hiddenImages.map(mapper).toList();
+    trashImages = trashImages.map(mapper).toList();
+    bestShotImages = bestShotImages.map(mapper).toList();
+    pickedImages = pickedImages.map(mapper).toList();
+
+    if (compareViewSelected) {
+      // add to compareImages if not present
+      final existingIds = compareImages.map((e) => e.id).toSet();
+      final toAdd = items.where((e) => !existingIds.contains(e.id)).toList();
+      compareImages = [...compareImages, ...toAdd];
+    } else {
+      compareImages = compareImages.where((img) => !ids.contains(img.id)).toList();
+    }
+    notifyListeners();
+  }
+
   void markAsRejected(List<String> imageIds) {
     final rejected = allImages
         .where((img) => imageIds.contains(img.id))
