@@ -149,6 +149,11 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           }
           setState(() {});
         },
+        onAddToCompare: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('비교뷰 담기 준비 중입니다.')),
+          );
+        },
         onDeleteSelected: _deleteSelected,
         onCancel: cancelSelection,
         isAllSelected: selectedImages.length == groupImages.length,

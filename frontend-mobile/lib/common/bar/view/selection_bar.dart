@@ -8,6 +8,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 class SelectModeAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final VoidCallback onSelectAll;
+  final VoidCallback onAddToCompare;
   final VoidCallback onDeleteSelected;
   final VoidCallback onCancel;
   final double deviceWidth;
@@ -16,6 +17,7 @@ class SelectModeAppBar extends StatelessWidget implements PreferredSizeWidget {
   const SelectModeAppBar({
     required this.title,
     required this.onSelectAll,
+    required this.onAddToCompare,
     required this.onDeleteSelected,
     required this.onCancel,
     required this.deviceWidth,
@@ -63,6 +65,19 @@ class SelectModeAppBar extends StatelessWidget implements PreferredSizeWidget {
           padding: const EdgeInsets.only(right: 20),
           child: Row(
             children: [
+              GestureDetector(
+                onTap: onAddToCompare,
+                child: Text(
+                  "비교뷰 담기",
+                  style: TextStyle(
+                    fontFamily: 'NotoSansMedium',
+                    fontSize: deviceWidth * (14 / 375),
+                    color: AppColors.dg1C1F23,
+                    letterSpacing: 0,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
               GestureDetector(
                 onTap: onDeleteSelected,
                 child: Text(

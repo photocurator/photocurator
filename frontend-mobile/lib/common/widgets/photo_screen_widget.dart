@@ -23,6 +23,12 @@ abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T> {
   bool isSelecting = false;
   List<ImageItem> selectedImages = [];
 
+  void onAddToCompare() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('비교뷰 담기 준비 중입니다.')),
+    );
+  }
+
   Future<void> refreshImages() async {
     final projectId = context.read<CurrentProjectProvider>().currentProject?.id;
     if (projectId == null) return;
@@ -137,6 +143,7 @@ abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T> {
             }
           });
         },
+        onAddToCompare: onAddToCompare,
         onDeleteSelected: onDeleteSelected,
         onCancel: () => cancelSelection(),
         isAllSelected: selectedImages.length == images.length,
@@ -200,6 +207,12 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T> {
 
   bool isSelecting = false;
   List<ImageItem> selectedImages = [];
+
+  void onAddToCompare() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('비교뷰 담기 준비 중입니다.')),
+    );
+  }
 
   Future<void> refreshImages() async {
     final projectId = context.read<CurrentProjectProvider>().currentProject?.id;
@@ -319,6 +332,7 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T> {
             }
           });
         },
+        onAddToCompare: onAddToCompare,
         onDeleteSelected: onDeleteSelected,
         onCancel: () => cancelSelection(),
         isAllSelected: selectedImages.length == images.length,

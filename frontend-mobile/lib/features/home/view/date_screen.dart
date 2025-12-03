@@ -143,6 +143,7 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
                   }
                 });
               },
+              onAddToCompare: onAddToCompare,
               onDeleteSelected: onDeleteSelected,
               onCancel: () => setState(() => isSelecting = false),
               isAllSelected:

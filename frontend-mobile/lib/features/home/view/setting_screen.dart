@@ -222,7 +222,7 @@ class _SettingScreenState extends BasePhotoContent<SettingScreen> {
               },
               onDeleteSelected: onDeleteSelected,
               onCancel: () => cancelSelection(),
-              isAllSelected: selectedImages.length == currentImages.length,
+              isAllSelected: selectedImages.length == currentImages.length, onAddToCompare: () {  },
             )
                 : SortingAppBar(
               screenTitle: screenTitle,

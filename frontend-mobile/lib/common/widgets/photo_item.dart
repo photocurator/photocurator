@@ -61,6 +61,7 @@ class ImageItem {
   ImageItem copyWith({
     bool? isRejected,
     bool? isPicked,
+    bool? compareViewSelected,
     int? rating,
     double? score,
     DateTime? createdAt,
@@ -76,6 +77,7 @@ class ImageItem {
       createdAt: createdAt ?? this.createdAt,
       objectTags: objectTags ?? this.objectTags,
       qualityScore: qualityScore ?? this.qualityScore,
+      compareViewSelected: compareViewSelected ?? this.compareViewSelected,
     );
   }
 
