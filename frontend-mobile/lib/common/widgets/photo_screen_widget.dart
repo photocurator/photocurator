@@ -80,6 +80,7 @@ abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T> {
   String get screenTitle;
   String get viewType; // 'ALL', 'TRASH', 'BEST_SHOTS', 'I_PICKED', 'HIDDEN'
   bool get showBottomActionBar => false; // 기본은 하단 액션바 숨김
+  List<ImageItem> get imageItems => [];
 
   bool isSelecting = false;
   List<ImageItem> selectedImages = [];
@@ -210,7 +211,7 @@ abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T> {
   Widget build(BuildContext context) {
     final deviceWidth = MediaQuery.of(context).size.width;
     final imageProvider = context.watch<CurrentProjectImagesProvider>();
-    final images = _getImagesFromProvider(imageProvider);
+    final images = (imageItems.isEmpty) ? _getImagesFromProvider(imageProvider) : imageItems;
     final isLoading = imageProvider.isLoading;
 
     return Scaffold(
@@ -276,7 +277,6 @@ abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T> {
         return provider.trashImages;
       case 'BEST_SHOTS':
         return provider.bestShotImages;
-      case 'I_PICKED':
       case 'PICKED':
         return provider.pickedImages;
       case 'HIDDEN':
@@ -292,6 +292,7 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T> {
   String get viewType;
   bool get showBottomActionBar => false; // 기본은 하단 액션바 숨김
   String sortType = "recommend"; // 기본 정렬
+  List<ImageItem> get imageItems => [];
 
   bool isSelecting = false;
   List<ImageItem> selectedImages = [];
@@ -390,43 +391,12 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T> {
   void selectAll(List<ImageItem> images) => setState(() => selectedImages = List.from(images));
   void cancelSelection() => setState(() => isSelecting = false);
 
-  // --- 추가: 하단 액션바 ---
-  Widget _buildBottomActionBar() {
-    return Container(
-      height: 60,
-      decoration: const BoxDecoration(
-          color: AppColors.wh1,
-          border: Border(top: BorderSide(color: AppColors.lgE9ECEF))),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildActionButton('좋아요', 'assets/icons/button/empty_heart_gray.svg'),
-          _buildActionButton('복사', 'assets/icons/button/duplicate_gray.svg'),
-          _buildActionButton('비교 뷰', 'assets/icons/button/full_screen_gray.svg'),
-          _buildActionButton('다운로드', 'assets/icons/button/arrow_collapse_down_gray.svg'),
-          _buildActionButton('삭제', 'assets/icons/button/empty_bin_gray.svg'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButton(String label, String iconPath) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        SvgPicture.asset(iconPath, width: 20, height: 20),
-        const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 10, color: AppColors.dg495057)),
-      ],
-    );
-  }
-  // --- 여기까지 액션바 추가 ---
-
   @override
   Widget build(BuildContext context) {
     final deviceWidth = MediaQuery.of(context).size.width;
     final imageProvider = context.watch<CurrentProjectImagesProvider>();
-    final images = _getImagesFromProvider(imageProvider);
+    final images = (imageItems.isEmpty) ? _getImagesFromProvider(imageProvider) : imageItems;
+
     final isLoading = imageProvider.isLoading;
 
     // 정렬
@@ -510,7 +480,6 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T> {
         return provider.trashImages;
       case 'BEST_SHOTS':
         return provider.bestShotImages;
-      case 'I_PICKED':
       case 'PICKED':
         return provider.pickedImages;
       case 'HIDDEN':

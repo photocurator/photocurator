@@ -9,7 +9,157 @@ import 'package:provider/provider.dart';
 
 import '../../../provider/current_project_provider.dart';
 
+class DateScreen extends StatefulWidget {
+  const DateScreen({Key? key}) : super(key: key);
 
+  @override
+  _DateScreenState createState() => _DateScreenState();
+}
+
+class _DateScreenState extends State<DateScreen> {
+
+  int selectedTabIndex = 0;
+  List<String> dateLabels = ["전체"];
+  List<String> normalizedDates = []; // 내부 필터용
+
+  // =============================
+  // 날짜 탭 생성 (중복 제거 버전)
+  // =============================
+  void _prepareDateLabels() {
+    final imageProvider = context.read<CurrentProjectImagesProvider>();
+    final images = imageProvider.allImages;
+
+    dateLabels = ["전체"];
+    normalizedDates = [];
+
+    // yyyy-MM-dd 로 날짜를 정규화 → Set으로 중복제거
+    final dateKeySet = images.map((img) {
+      final d = img.captureDatetime ?? img.createdAt;
+      final month = d.month.toString().padLeft(2, '0');
+      final day = d.day.toString().padLeft(2, '0');
+      return "${d.year}-$month-$day";
+    }).toSet().toList()
+      ..sort();
+
+    normalizedDates = dateKeySet;
+
+    // UI에서는 "12월 01일" 형태로 표시
+    dateLabels.addAll(dateKeySet.map((dateKey) {
+      final parts = dateKey.split("-");
+      final month = int.parse(parts[1]);
+      final day = int.parse(parts[2]);
+      return "$month월$day일";
+    }));
+  }
+
+  // =============================
+  // 현재 탭에서 보여줄 이미지 필터링
+  // =============================
+  List<ImageItem> get currentImages {
+    final imageProvider = context.read<CurrentProjectImagesProvider>();
+    final images = imageProvider.allImages;
+
+    // "전체" 탭
+    if (selectedTabIndex == 0) return images;
+
+    // 날짜 탭 → normalizedDates 기준으로 필터링
+    final normalizedKey = normalizedDates[selectedTabIndex - 1];
+    final parts = normalizedKey.split("-");
+    final month = int.parse(parts[1]);
+    final day = int.parse(parts[2]);
+
+    return images.where((img) {
+      final d = img.captureDatetime ?? img.createdAt;
+      return d.month == month && d.day == day;
+    }).toList();
+  }
+
+  // =============================
+  // Dependency 변경 시 날짜 라벨 업데이트
+  // =============================
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final imageProvider = context.watch<CurrentProjectImagesProvider>();
+    if (!imageProvider.isLoading) {
+      setState(() {
+        _prepareDateLabels();
+        if (selectedTabIndex >= dateLabels.length) {
+          selectedTabIndex = 0;
+        }
+      });
+    }
+  }
+
+  void _onTabSelected(int index) {
+    setState(() => selectedTabIndex = index);
+  }
+
+  // =============================
+  // UI
+  // =============================
+  @override
+  Widget build(BuildContext context) {
+    final deviceWidth = MediaQuery.of(context).size.width;
+    final imageProvider = context.watch<CurrentProjectImagesProvider>();
+    final isLoading = imageProvider.isLoading;
+
+    return Scaffold(
+      backgroundColor: AppColors.wh1,
+      body: Column(
+        children: [
+          // 날짜 선택 탭
+          SelectableBar(
+            items: dateLabels,
+            selectedIndex: selectedTabIndex,
+            onItemSelected: _onTabSelected,
+            height: deviceWidth * (44 / 375),
+          ),
+          // Content 위젯에 named parameter로 images 전달
+          Expanded(
+            child: DateScreenContent(images: currentImages),
+          )
+        ],
+      ),
+    );
+  }
+}
+
+// =============================
+// DateScreenContent 위젯
+// =============================
+class DateScreenContent extends StatefulWidget {
+  final List<ImageItem> images;
+
+  const DateScreenContent({
+    Key? key,
+    required this.images,
+  }) : super(key: key);
+
+  @override
+  _DateScreenContentState createState() => _DateScreenContentState();
+}
+
+class _DateScreenContentState extends BasePhotoContent<DateScreenContent> {
+  @override
+  String get viewType => 'ALL';
+
+  @override
+  String get screenTitle => '날짜별 사진';
+
+  // 그룹핑 필요 없으므로 null 반환
+  @override
+  String? get groupBy => null;
+
+  // StatefulWidget의 images를 참조하려면 widget.images 사용
+  @override
+  List<ImageItem> get imageItems => widget.images;
+}
+
+
+
+/*
 class DateScreen extends StatefulWidget {
   const DateScreen({Key? key}) : super(key: key);
 
@@ -189,3 +339,4 @@ class _DateScreenState extends BasePhotoContent<DateScreen> {
     );
   }
 }
+*/

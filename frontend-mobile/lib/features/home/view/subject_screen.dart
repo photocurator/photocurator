@@ -16,18 +16,7 @@ class SubjectScreen extends StatefulWidget {
   State<SubjectScreen> createState() => _SubjectScreenState();
 }
 
-class _SubjectScreenState extends BasePhotoContent<SubjectScreen> {
-  @override
-  String get screenTitle => "주제별 사진";
-
-  @override
-  String get viewType => "ALL";
-
-  @override
-  String get sortType => "recommend";
-
-  @override
-  String? get groupBy => null;
+class _SubjectScreenState extends State<SubjectScreen> {
 
   int selectedTabIndex = 0;
   List<String> subjectLabels = []; // objectTags에서 추출
@@ -157,66 +146,39 @@ class _SubjectScreenState extends BasePhotoContent<SubjectScreen> {
             height: deviceWidth * (44 / 375),
           ),
 
-          // 상단 앱바 (정렬/선택 모드)
-          SizedBox(
-            height: deviceWidth * (40 / 375),
-            child: isSelecting
-                ? SelectModeAppBar(
-              title: selectedImages.isEmpty
-                  ? "전체 선택"
-                  : "${selectedImages.length}개 선택됨",
-              deviceWidth: deviceWidth,
-              onSelectAll: () {
-                setState(() {
-                  if (selectedImages.length == currentImages.length) {
-                    selectedImages.clear();
-                  } else {
-                    selectedImages = List.from(currentImages);
-                  }
-                });
-              },
-              onAddToCompare: onAddToCompare,
-              onDownloadSelected: onDownloadSelected,
-              onDeleteSelected: onDeleteSelected,
-              onCancel: () => setState(() => isSelecting = false),
-              isAllSelected:
-              selectedImages.length == currentImages.length,
-            )
-                : SortingAppBar(
-              screenTitle: screenTitle,
-              imagesCount: currentImages.length,
-              sortType: sortType ?? "recommend",
-              deviceWidth: deviceWidth,
-              onSelectMode: () => setState(() => isSelecting = true),
-              onSortRecommend: () =>
-                  setState(() => sortType = "recommend"),
-              onSortTime: () => setState(() => sortType = "time"),
-            ),
-          ),
-
-          // 본문 영역
           Expanded(
-            child: isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : currentImages.isEmpty
-                ? const Center(
-              child: Text(
-                '선택된 주제의 이미지가 없습니다.',
-                style: TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            )
-                : PhotoGrid(
-              images: currentImages,
-              isSelecting: isSelecting,
-              selectedImages: selectedImages,
-              onSelectToggle: toggleSelection,
-              onLongPressItem: () => setState(() => isSelecting = true),
-              onTogglePick: togglePick,
-            ),
-          ),
+            child: SubjectScreenContent(images: currentImages),
+          )
         ],
       ),
     );
   }
+}
+
+class SubjectScreenContent extends StatefulWidget {
+  final List<ImageItem> images;
+
+  const SubjectScreenContent({
+    Key? key,
+    required this.images,
+  }) : super(key: key);
+
+  @override
+  _SubjectScreenContentState createState() => _SubjectScreenContentState();
+}
+
+class _SubjectScreenContentState extends BasePhotoContent<SubjectScreenContent> {
+  @override
+  String get viewType => 'ALL';
+
+  @override
+  String get screenTitle => '날짜별 사진';
+
+  // 그룹핑 필요 없으므로 null 반환
+  @override
+  String? get groupBy => null;
+
+  // StatefulWidget의 images를 참조하려면 widget.images 사용
+  @override
+  List<ImageItem> get imageItems => widget.images;
 }

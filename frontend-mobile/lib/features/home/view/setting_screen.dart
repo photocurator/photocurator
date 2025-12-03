@@ -19,26 +19,16 @@ class SettingScreen extends StatefulWidget {
   State<SettingScreen> createState() => _SettingScreenState();
 }
 
-class _SettingScreenState extends BasePhotoContent<SettingScreen> {
-  @override
-  String get screenTitle => "카메라/렌즈 사진";
-
-  @override
-  String get viewType => "ALL";
-
-  @override
-  String get sortType => "recommend";
-
-  @override
-  String? get groupBy => null;
+class _SettingScreenState extends State<SettingScreen> {
 
   bool isLoading = true;
   int selectedTabIndex = 0;
+
   List<String> tabs = [];
   Map<String, List<ImageItem>> tabImages = {};
-  List<ImageItem> selectedImages = [];
 
   late Dio _dio;
+  bool _initialized = false; // ← 중복 호출 방지용
 
   @override
   void initState() {
@@ -54,83 +44,24 @@ class _SettingScreenState extends BasePhotoContent<SettingScreen> {
     _dio.options.baseUrl = baseUrl;
   }
 
-  void toggleSelection(ImageItem item) {
-    setState(() {
-      if (selectedImages.contains(item)) {
-        selectedImages.remove(item);
-      } else {
-        selectedImages.add(item);
-      }
-    });
-  }
-
-  void cancelSelection() => setState(() => isSelecting = false);
-
-  @override
-  Future<void> onDeleteSelected() async {
-    if (selectedImages.isEmpty) {
-      cancelSelection();
-      return;
-    }
-    final ids = selectedImages.map((e) => e.id).toList();
-    final success = await ApiService().batchRejectImages(imageIds: ids);
-    if (!mounted) return;
-    if (success) {
-      context.read<CurrentProjectImagesProvider>().markAsRejected(ids);
-      setState(() {
-        tabImages.updateAll(
-          (_, list) => list.where((img) => !ids.contains(img.id)).toList(),
-        );
-        selectedImages.clear();
-        isSelecting = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('선택한 이미지를 삭제했습니다.')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('삭제에 실패했습니다.')),
-      );
-    }
-  }
-
-  // ------------------------------------------------
-  // 🔥 여기에서 직접 /images/{id}/details 호출
-  // ------------------------------------------------
   Future<Map<String, dynamic>?> _fetchImageDetail(String id) async {
     try {
       final res = await _dio.get("/images/$id/details");
-      return res.data ?? res.data;
+      return res.data;
     } catch (e) {
       debugPrint("Error fetching detail for $id: $e");
       return null;
     }
   }
 
-  // ------------------------------------------------
-  // 🔥 전체 이미지 + 세부정보 불러와서 탭 구성
-  // ------------------------------------------------
-  Future<void> _loadAndPrepareTabs() async {
+  Future<void> _prepareSubjectLabels() async {
     setState(() => isLoading = true);
 
-    final projectProvider = context.read<CurrentProjectProvider>();
-    final projectId = projectProvider.currentProject?.id;
-
-    if (projectId == null) {
-      debugPrint("No current project selected.");
-      setState(() => isLoading = false);
-      return;
-    }
-
     try {
-      // 1. 프로젝트 모든 이미지 불러오기
-      final allImages = await ApiService().fetchProjectImages(
-        projectId: projectId,
-        viewType: "ALL",
-      );
+      final imageProvider = context.read<CurrentProjectImagesProvider>();
+      final allImages = imageProvider.allImages;
 
-      // 2. 각 이미지 세부 정보 직접 호출
-      final futures = allImages.map((img) async {
+      final detailFutures = allImages.map((img) async {
         final detail = await _fetchImageDetail(img.id);
         if (detail == null) return null;
 
@@ -140,13 +71,10 @@ class _SettingScreenState extends BasePhotoContent<SettingScreen> {
 
         final key = "$camera & $lens";
 
-        return {
-          'key': key,
-          'image': img,
-        };
+        return {'key': key, 'image': img};
       });
 
-      final results = await Future.wait(futures);
+      final results = await Future.wait(detailFutures);
 
       Map<String, List<ImageItem>> grouped = {};
 
@@ -172,6 +100,20 @@ class _SettingScreenState extends BasePhotoContent<SettingScreen> {
     }
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    if (_initialized) return;
+    _initialized = true;
+
+    final provider = context.watch<CurrentProjectImagesProvider>();
+
+    if (!provider.isLoading) {
+      _prepareSubjectLabels();
+    }
+  }
+
   List<ImageItem> get currentImages {
     if (tabs.isEmpty) return [];
     return tabImages[tabs[selectedTabIndex]] ?? [];
@@ -179,12 +121,6 @@ class _SettingScreenState extends BasePhotoContent<SettingScreen> {
 
   void _onTabSelected(int index) {
     setState(() => selectedTabIndex = index);
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _loadAndPrepareTabs();
   }
 
   @override
@@ -203,62 +139,42 @@ class _SettingScreenState extends BasePhotoContent<SettingScreen> {
               height: deviceWidth * (44 / 375),
             ),
 
-          SizedBox(
-            height: deviceWidth * (40 / 375),
-            child: isSelecting
-                ? SelectModeAppBar(
-              title: selectedImages.isEmpty
-                  ? "전체 선택"
-                  : "${selectedImages.length}개 선택됨",
-              deviceWidth: deviceWidth,
-              onSelectAll: () {
-                setState(() {
-                  if (selectedImages.length == currentImages.length) {
-                    selectedImages.clear();
-                  } else {
-                    selectedImages = List.from(currentImages);
-                  }
-                });
-              },
-              onAddToCompare: onAddToCompare,
-              onDownloadSelected: onDownloadSelected,
-              onDeleteSelected: onDeleteSelected,
-              onCancel: () => cancelSelection(),
-              isAllSelected: selectedImages.length == currentImages.length,
-            )
-                : SortingAppBar(
-              screenTitle: screenTitle,
-              imagesCount: currentImages.length,
-              sortType: sortType,
-              deviceWidth: deviceWidth,
-              onSelectMode: () => setState(() => isSelecting = true),
-              onSortRecommend: () {},
-              onSortTime: () {},
-            ),
-          ),
-
           Expanded(
             child: isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : currentImages.isEmpty
-                ? const Center(
-              child: Text(
-                '선택된 카메라/렌즈의 이미지가 없습니다.',
-                style: TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            )
-                : PhotoGrid(
-              images: currentImages,
-              isSelecting: isSelecting,
-              selectedImages: selectedImages,
-              onSelectToggle: toggleSelection,
-              onLongPressItem: () =>
-                  setState(() => isSelecting = true),
-            ),
-          ),
+                : SettingScreenContent(images: currentImages),
+          )
         ],
       ),
     );
   }
+}
+
+
+class SettingScreenContent extends StatefulWidget {
+  final List<ImageItem> images;
+
+  const SettingScreenContent({
+    Key? key,
+    required this.images,
+  }) : super(key: key);
+
+  @override
+  _SettingScreenContentState createState() => _SettingScreenContentState();
+}
+
+class _SettingScreenContentState extends BasePhotoContent<SettingScreenContent> {
+  @override
+  String get viewType => 'ALL';
+
+  @override
+  String get screenTitle => '날짜별 사진';
+
+  // 그룹핑 필요 없으므로 null 반환
+  @override
+  String? get groupBy => null;
+
+  // StatefulWidget의 images를 참조하려면 widget.images 사용
+  @override
+  List<ImageItem> get imageItems => widget.images;
 }

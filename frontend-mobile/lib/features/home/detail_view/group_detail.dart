@@ -1,3 +1,117 @@
+// hide_screen.dart
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_better_auth/core/flutter_better_auth.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:photocurator/common/widgets/photo_screen_widget.dart';
+import 'package:photocurator/common/widgets/photo_item.dart';
+import 'package:provider/provider.dart';
+
+import '../../../provider/current_project_provider.dart';
+
+
+class GroupDetailScreen extends StatefulWidget {
+  final GroupItem group;
+
+  const GroupDetailScreen({Key? key, required this.group}) : super(key: key);
+
+  @override
+  State<GroupDetailScreen> createState() => _GroupDetailScreenState();
+}
+
+class _GroupDetailScreenState extends BasePhotoScreen<GroupDetailScreen> {
+  final ApiService _api = ApiService();
+
+  List<ImageItem> groupImages = [];
+  bool isLoading = true;
+
+  @override
+  String get screenTitle => "그룹 사진";
+
+  @override
+  String get viewType => "GROUP";
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGroupImages();
+  }
+
+  Future<void> _loadGroupImages() async {
+    setState(() => isLoading = true);
+
+    try {
+      final imgs = await _api.fetchGroupImages(
+        projectId: widget.group.projectId,
+        groupId: widget.group.id,
+      );
+
+      setState(() {
+        groupImages = imgs;
+        isLoading = false;
+      });
+    } catch (e) {
+      debugPrint("그룹 이미지 로드 실패: $e");
+      setState(() => isLoading = false);
+    }
+  }
+
+  @override
+  Future<void> onRefresh() async {
+    await _loadGroupImages();
+  }
+
+  @override
+  List<ImageItem> get imageItems => groupImages;
+}
+
+class ApiService {
+  late final Dio _dio;
+
+  ApiService() {
+    final baseUrl = dotenv.env['API_BASE_URL'];
+    if (baseUrl == null || baseUrl.isEmpty) {
+      throw Exception('API_BASE_URL not found in .env file');
+    }
+
+    _dio = FlutterBetterAuth.dioClient;
+    _dio.options.baseUrl = baseUrl;
+  }
+
+  /// 프로젝트 내 특정 그룹 사진들 불러오기
+  Future<List<ImageItem>> fetchGroupImages({
+    required String projectId,
+    required String groupId,
+  }) async {
+    try {
+      final res = await _dio.get(
+        '/images',
+        queryParameters: {
+          'projectId': projectId,
+          'groupId': groupId,
+          'isRejected': 'false',
+          //'sort': 'createdAt',
+          //'order': 'desc',
+        },
+      );
+
+      final list = res.data['data'] as List<dynamic>;
+
+      return list
+          .map((e) => ImageItem.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+
+    } catch (e) {
+      debugPrint("fetchGroupImages error: $e");
+      return [];
+    }
+  }
+}
+
+
+
+
+/*
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -284,3 +398,4 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     );
   }
 }
+*/

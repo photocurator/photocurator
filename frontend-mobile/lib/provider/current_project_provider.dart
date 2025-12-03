@@ -68,14 +68,25 @@ class CurrentProjectImagesProvider extends ChangeNotifier {
 
       // 5. Trash, BestShot, Picked 리스트
       trashImages = trash;
-      bestShotImages = await ApiService().fetchProjectImages(
+
+      final bests = await ApiService().fetchProjectImages(
         projectId: projectId,
         viewType: 'BEST_SHOTS',
       );
-      pickedImages = await ApiService().fetchProjectImages(
+
+      // 4. All 이미지에서 숨긴 사진 + 휴지통 제거
+      bestShotImages =
+          bests.where((img) => !img.isRejected && !trashIds.contains(img.id))
+              .toList();
+
+      final picks = await ApiService().fetchProjectImages(
         projectId: projectId,
         viewType: 'PICKED',
       );
+
+      pickedImages =
+          picks.where((img) => !img.isRejected && !trashIds.contains(img.id))
+              .toList();
 
       compareImages = await ApiService().fetchProjectImages(
         projectId: projectId,
