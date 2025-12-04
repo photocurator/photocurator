@@ -210,25 +210,38 @@ class _HighlightScreenState extends State<HighlightScreen> {
             const SizedBox(height: 200),
 
             SizedBox(
-              height: 160, // 원하는 높이
+              height: 160,
               width: double.infinity,
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
                 child: Stack(
-                  fit: StackFit.expand, // Stack이 부모 전체를 차지하도록
+                  fit: StackFit.expand,
                   children: [
-                    // 배경 컬러
+                    // 중심에서 퍼지는 그라디언트 배경
                     Container(
-                      color: const Color(0xFFE0E4F6),
+                      decoration: const BoxDecoration(
+                        gradient: RadialGradient(
+                          center: Alignment(0.0, -0.3), // 약간 위쪽
+                          radius: 1.8, // 크게 퍼지도록 조정 → 가로로 퍼지는 듯 보임
+                          colors: [
+                            AppColors.wh1, // 중앙 밝은 톤
+                            Color(0xFFE8EBF7), // 중앙 밝은 톤
+                            Color(0xFFDDE1EF),
+                            Color(0xFFCCD2E4),
+                          ],
+                          stops: [0.0, 0.2, 0.55, 1.0],
+                        ),
+                      ),
                     ),
-                    // 흐림 효과
+
+                    // Blur 효과
                     BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 100, sigmaY: 100),
+                      filter: ImageFilter.blur(sigmaX: 70, sigmaY: 70),
                       child: Container(
                         color: Colors.transparent,
                       ),
                     ),
-                    // 실제 컨텐츠
+
+                    // 실제 콘텐츠
                     Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -279,9 +292,9 @@ class _HighlightScreenState extends State<HighlightScreen> {
               child: Text(
                 "숨긴 사진",
                 style: TextStyle(
-                  fontFamily: 'NotoSansMedium',        // 노토산스미디움
-                  fontSize: deviceWidth * (18 / 375),  // 폰트 크기
-                  color: AppColors.dg1C1F23,                 // 원하는 색상으로 변경 가능
+                  fontFamily: 'NotoSansMedium', // 노토산스미디움
+                  fontSize: deviceWidth * (18 / 375), // 폰트 크기
+                  color: AppColors.dg1C1F23, // 원하는 색상으로 변경 가능
                 ),
               ),
             ),
@@ -310,9 +323,6 @@ class _HighlightScreenState extends State<HighlightScreen> {
               ),
             ),
             const SizedBox(height: 100),
-
-
-
           ],
         ),
       ),
@@ -352,7 +362,8 @@ class _ShimmerPlaceholderRowState extends State<ShimmerPlaceholderRow>
     final deviceWidth = MediaQuery.of(context).size.width;
     final crossAxisSpacing = 4.0;
     final paddingHorizontal = 20.0;
-    final itemWidth = (deviceWidth - paddingHorizontal * 2 - crossAxisSpacing * 2) / 3;
+    final itemWidth =
+        (deviceWidth - paddingHorizontal * 2 - crossAxisSpacing * 2) / 3;
 
     return GridView.builder(
       shrinkWrap: true,
@@ -364,7 +375,8 @@ class _ShimmerPlaceholderRowState extends State<ShimmerPlaceholderRow>
         mainAxisSpacing: crossAxisSpacing,
         childAspectRatio: 1, // 1:1 정사각형
       ),
-      itemCount: 3, // 3열 1행
+      itemCount: 3,
+      // 3열 1행
       itemBuilder: (context, index) {
         return AnimatedBuilder(
           animation: _controller,

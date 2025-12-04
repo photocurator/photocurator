@@ -87,9 +87,9 @@ class ApiService {
       final res = await _dio.get(
         '/images',
         queryParameters: {
-          'projectId': projectId,
+          //'projectId': projectId,
           'groupId': groupId,
-          'isRejected': 'false',
+          //'isRejected': 'false',
           //'sort': 'createdAt',
           //'order': 'desc',
         },

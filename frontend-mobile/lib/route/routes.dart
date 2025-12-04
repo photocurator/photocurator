@@ -68,10 +68,13 @@ final AppRouter = GoRouter(
           routes: [
             GoRoute(
               path: '/search',
-              pageBuilder: (context, state) => MaterialPage(
-                key: state.pageKey,
-                child: SearchScreen(),
-              ),
+              pageBuilder: (context, state) {
+                final projectId = state.extra as String?;
+                return MaterialPage(
+                  key: state.pageKey,
+                  child: SearchScreen(initialProjectId: projectId),
+                );
+              },
             ),
           ],
         ),

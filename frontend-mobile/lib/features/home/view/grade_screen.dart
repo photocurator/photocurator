@@ -16,86 +16,30 @@ class GradeScreen extends StatefulWidget {
 }
 
 class _GradeScreenState extends State<GradeScreen> {
-
   int selectedTabIndex = 0;
   List<String> ratingLabels = ["베스트 샷", "A컷", "B컷"];
-
-  bool _labelsPrepared = false; // 중복 계산 방지
 
   List<ImageItem> _bestShots = [];
   List<ImageItem> _aCuts = [];
   List<ImageItem> _bCuts = [];
 
-  void _recalculateCuts() {
-    final imageProvider = context.read<CurrentProjectImagesProvider>();
-    final allImages = List<ImageItem>.from(imageProvider.allImages);
-
-    if (allImages.isEmpty) {
-      _bestShots = [];
-      _aCuts = [];
-      _bCuts = [];
-      return;
-    }
-
-    allImages.sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
-
-    final total = allImages.length;
-
-    int bestCount = (total * 0.3).floor();
-    if (bestCount > 20) bestCount = 20;
-    if (bestCount > total) bestCount = total;
-
-    _bestShots = allImages.take(bestCount).toList();
-
-    final remain = allImages.skip(bestCount).toList();
-    final remainCount = remain.length;
-
-    int aCutCount = (remainCount / 2).floor();
-
-    _aCuts = remain.take(aCutCount).toList();
-    _bCuts = remain.skip(aCutCount).toList();
-  }
-
-  List<ImageItem> get currentImages {
-    if (selectedTabIndex == 0) return _bestShots;
-    if (selectedTabIndex == 1) return _aCuts;
-    return _bCuts;
-  }
-
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-
-    // provider가 바뀌면 여기 호출됨. 단 최초 1회만 라벨 구성
-    if (!_labelsPrepared) {
-      _prepareRatingLabels();
-
-      if (selectedTabIndex >= ratingLabels.length) {
-        selectedTabIndex = 0;
-      }
-
-      _labelsPrepared = true;
-    }
-  }
-
-  void _prepareRatingLabels() {
-    final imageProvider = context.read<CurrentProjectImagesProvider>();
+  Widget build(BuildContext context) {
+    // Provider 변경 즉시 감지됨
+    final imageProvider = context.watch<CurrentProjectImagesProvider>();
     final allImages = imageProvider.allImages;
 
+    // 라벨 구성
     if (allImages.length <= 3) {
       ratingLabels = ["베스트 샷"];
+      if (selectedTabIndex > 0) selectedTabIndex = 0;
     } else {
       ratingLabels = ["베스트 샷", "A컷", "B컷"];
     }
-    _recalculateCuts();
-  }
 
-  void _onTabSelected(int index) {
-    setState(() => selectedTabIndex = index);
-  }
+    // 컷 재계산
+    _recalculateCuts(allImages);
 
-  @override
-  Widget build(BuildContext context) {
     final deviceWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
@@ -105,15 +49,50 @@ class _GradeScreenState extends State<GradeScreen> {
           SelectableBar(
             items: ratingLabels,
             selectedIndex: selectedTabIndex,
-            onItemSelected: _onTabSelected,
+            onItemSelected: (i) => setState(() => selectedTabIndex = i),
             height: deviceWidth * (44 / 375),
           ),
           Expanded(
             child: GradeScreenContent(images: currentImages),
-          )
+          ),
         ],
       ),
     );
+  }
+
+  void _recalculateCuts(List<ImageItem> allImages) {
+    if (allImages.isEmpty) {
+      _bestShots = [];
+      _aCuts = [];
+      _bCuts = [];
+      return;
+    }
+
+    final sorted = List<ImageItem>.from(allImages)
+      ..sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
+
+    final total = sorted.length;
+
+    // 베스트샷 계산
+    int bestCount = (total * 0.3).floor();
+    if (bestCount > 20) bestCount = 20;
+    if (bestCount > total) bestCount = total;
+
+    _bestShots = sorted.take(bestCount).toList();
+
+    // 나머지 A/B컷 나누기
+    final remain = sorted.skip(bestCount).toList();
+    final remainCount = remain.length;
+
+    int aCutCount = (remainCount / 2).floor();
+    _aCuts = remain.take(aCutCount).toList();
+    _bCuts = remain.skip(aCutCount).toList();
+  }
+
+  List<ImageItem> get currentImages {
+    if (selectedTabIndex == 0) return _bestShots;
+    if (selectedTabIndex == 1) return _aCuts;
+    return _bCuts;
   }
 }
 
@@ -142,5 +121,3 @@ class _GradeScreenContentState extends BasePhotoContent<GradeScreenContent> {
   @override
   List<ImageItem> get imageItems => widget.images;
 }
-
-

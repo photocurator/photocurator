@@ -1,4 +1,5 @@
 // setting_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_better_auth/core/flutter_better_auth.dart';
 import 'package:photocurator/common/widgets/photo_item.dart';
@@ -20,7 +21,6 @@ class SettingScreen extends StatefulWidget {
 }
 
 class _SettingScreenState extends State<SettingScreen> {
-
   bool isLoading = true;
   int selectedTabIndex = 0;
 
@@ -28,7 +28,8 @@ class _SettingScreenState extends State<SettingScreen> {
   Map<String, List<ImageItem>> tabImages = {};
 
   late Dio _dio;
-  bool _initialized = false; // ← 중복 호출 방지용
+
+  bool _initialized = false; // 중복 호출 방지용
 
   @override
   void initState() {
@@ -71,7 +72,10 @@ class _SettingScreenState extends State<SettingScreen> {
 
         final key = "$camera & $lens";
 
-        return {'key': key, 'image': img};
+        return {
+          'key': key,
+          'image': img,
+        };
       });
 
       final results = await Future.wait(detailFutures);
@@ -143,13 +147,12 @@ class _SettingScreenState extends State<SettingScreen> {
             child: isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : SettingScreenContent(images: currentImages),
-          )
+          ),
         ],
       ),
     );
   }
 }
-
 
 class SettingScreenContent extends StatefulWidget {
   final List<ImageItem> images;
@@ -163,18 +166,17 @@ class SettingScreenContent extends StatefulWidget {
   _SettingScreenContentState createState() => _SettingScreenContentState();
 }
 
-class _SettingScreenContentState extends BasePhotoContent<SettingScreenContent> {
+class _SettingScreenContentState
+    extends BasePhotoContent<SettingScreenContent> {
   @override
   String get viewType => 'ALL';
 
   @override
   String get screenTitle => '날짜별 사진';
 
-  // 그룹핑 필요 없으므로 null 반환
   @override
   String? get groupBy => null;
 
-  // StatefulWidget의 images를 참조하려면 widget.images 사용
   @override
   List<ImageItem> get imageItems => widget.images;
 }

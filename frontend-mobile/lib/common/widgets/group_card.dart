@@ -76,14 +76,20 @@ class GroupCard extends StatelessWidget {
                     else
                       Container(
                         color: AppColors.lgE9ECEF,
-                        child: const Center(child: Icon(Icons.image, size: 40)),
+                        child: const Center(
+                          child: Icon(
+                            Icons.image,
+                            size: 50,
+                            color: AppColors.lgCBD1D6, // 원하는 색
+                          ),
+                        ),
                       ),
 
                     // 내용 오버레이
                     Positioned(
-                      left: 12,
-                      bottom: 12,
-                      right: 12,
+                      left: 20,
+                      top: 20,
+                      right: 20,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -91,13 +97,13 @@ class GroupCard extends StatelessWidget {
                             "${group.memberCount}장",
                             style: const TextStyle(
                               fontFamily: 'NotoSansMedium',
-                              fontSize: 14,
-                              color: AppColors.wh1,
+                              fontSize: 16,
+                              color: Colors.white,
                               shadows: [
                                 Shadow(
-                                  offset: Offset(0, 1),
+                                  offset: Offset(0, 0),
                                   blurRadius: 4,
-                                  color: Color.fromRGBO(28, 31, 35, 0.2),
+                                  color: Color.fromRGBO(20, 50, 60, 0.4),
                                 ),
                               ],
                             ),
@@ -110,8 +116,10 @@ class GroupCard extends StatelessWidget {
                             style: const TextStyle(
                               fontFamily: 'NotoSansRegular',
                               fontSize: 12,
-                              color: AppColors.wh1,
+                              color: Colors.white,
                             ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
