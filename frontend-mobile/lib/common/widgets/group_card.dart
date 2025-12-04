@@ -94,7 +94,7 @@ class GroupCard extends StatelessWidget {
                           children: [
                       // Title
                       Text(
-                      group.groupType =="similar"? "유사 \n ${group.memberCount}" : "위치 \n ${group.memberCount}",
+                      group.groupType =="similar"? "유사 사진 \n ${group.memberCount}" : "같은 장소 \n ${group.memberCount}",
                           style: const TextStyle(
                           fontFamily: 'NotoSansMedium',
                       fontSize: 15,
