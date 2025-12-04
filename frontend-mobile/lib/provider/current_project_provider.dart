@@ -40,6 +40,14 @@ class CurrentProjectImagesProvider extends ChangeNotifier {
   bool isLoading = false;
 
   /// 프로젝트에 해당하는 모든 이미지 및 그룹 로드
+  List<T> uniqueById<T>(List<T> images, String Function(T) idSelector) {
+    final map = <String, T>{};
+    for (var img in images) {
+      map[idSelector(img)] = img;
+    }
+    return map.values.toList();
+  }
+
   Future<void> loadAllImages(String projectId) async {
     isLoading = true;
     notifyListeners();
@@ -51,6 +59,8 @@ class CurrentProjectImagesProvider extends ChangeNotifier {
         viewType: 'ALL',
       );
 
+      allImages = uniqueById(all, (img) => img.id);
+
       // 2. Trash 이미지 조회
       final trash = await ApiService().fetchProjectImages(
         projectId: projectId,
@@ -58,26 +68,26 @@ class CurrentProjectImagesProvider extends ChangeNotifier {
       );
 
       // 3. 숨긴 사진만 따로 저장
-      hiddenImages = all.where((img) => img.isRejected).toList();
+      hiddenImages = allImages.where((img) => img.isRejected).toList();
 
       // 4. All 이미지에서 숨긴 사진 + 휴지통 제거
       final trashIds = trash.map((e) => e.id).toList();
       allImages =
-          all.where((img) => !img.isRejected && !trashIds.contains(img.id))
+          allImages.where((img) => !img.isRejected && !trashIds.contains(img.id))
               .toList();
 
       // 5. Trash, BestShot, Picked 리스트
       trashImages = trash;
 
-      final bests = await ApiService().fetchProjectImages(
-        projectId: projectId,
-        viewType: 'BEST_SHOTS',
-      );
+      //final bests = await ApiService().fetchProjectImages(
+        //projectId: projectId,
+        //viewType: 'BEST_SHOTS',
+      //);
 
       // 4. All 이미지에서 숨긴 사진 + 휴지통 제거
-      bestShotImages =
-          bests.where((img) => !img.isRejected && !trashIds.contains(img.id))
-              .toList();
+      //bestShotImages =
+          //bests.where((img) => !img.isRejected && !trashIds.contains(img.id))
+              //.toList();
 
       final picks = await ApiService().fetchProjectImages(
         projectId: projectId,
@@ -87,6 +97,8 @@ class CurrentProjectImagesProvider extends ChangeNotifier {
       pickedImages =
           picks.where((img) => !img.isRejected && !trashIds.contains(img.id))
               .toList();
+
+      pickedImages = uniqueById(pickedImages, (img) => img.id);
 
       compareImages = await ApiService().fetchProjectImages(
         projectId: projectId,
