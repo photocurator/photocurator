@@ -14,7 +14,7 @@ import {
   project,
   imageGroupMembership,
 } from '../db/schema';
-import { eq, and, or, ilike, gt, gte, lte, desc, asc, exists, inArray, SQL, not } from 'drizzle-orm';
+import { eq, and, or, ilike, gt, gte, lte, desc, asc, exists, inArray, SQL, not, sql } from 'drizzle-orm';
 import { AuthType } from '../lib/auth';
 
 type Variables = {
@@ -261,6 +261,20 @@ app.openapi(searchImagesRoute, async (c) => {
     filters.push(lte(imageTable.captureDatetime, new Date(captureTimeEnd)));
   }
 
+  const validFilters = filters.filter((f): f is SQL => f !== undefined);
+
+  // ---- COUNT TOTAL ----
+  // Build the count query with the exact same filters (no limit/offset)
+  const total = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(imageTable)
+    .leftJoin(project, eq(imageTable.projectId, project.id))
+    .leftJoin(imageSelection, and(eq(imageSelection.imageId, imageTable.id), eq(imageSelection.userId, user.id)))
+    .leftJoin(qualityScore, eq(qualityScore.imageId, imageTable.id))
+    .where(validFilters.length > 0 ? and(...validFilters) : undefined)
+    .then(rows => rows[0]?.count || 0);
+
+  // ---- PAGINATE ACTUAL DATA ----
   const query = db
     .select({
       image: imageTable,
@@ -272,7 +286,6 @@ app.openapi(searchImagesRoute, async (c) => {
     .leftJoin(imageSelection, and(eq(imageSelection.imageId, imageTable.id), eq(imageSelection.userId, user.id)))
     .leftJoin(qualityScore, eq(qualityScore.imageId, imageTable.id));
 
-  const validFilters = filters.filter((f): f is SQL => f !== undefined);
   if (validFilters.length > 0) {
     query.where(and(...validFilters));
   }
@@ -291,11 +304,11 @@ app.openapi(searchImagesRoute, async (c) => {
   }
 
   query.orderBy(orderByClause);
-
   query.limit(limit).offset(offset);
 
   const imageList = await query;
 
+  let responseData: any[] = [];
   if (imageList.length > 0) {
     const imageIds = imageList.map((i) => i.image.id);
     const tags = await db
@@ -311,22 +324,17 @@ app.openapi(searchImagesRoute, async (c) => {
       return acc;
     }, {} as Record<string, typeof objectTag.$inferSelect[]>);
 
-    const responseData = imageList.map((i) => ({
+    responseData = imageList.map((i) => ({
       ...i,
       objectTags: tagsByImageId[i.image.id] || [],
     }));
-
-    return c.json({
-      data: responseData,
-      page,
-      limit,
-    });
   }
 
   return c.json({
-    data: [],
+    data: responseData,
     page,
     limit,
+    total,
   });
 });
 

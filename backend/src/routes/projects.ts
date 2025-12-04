@@ -230,7 +230,7 @@ const getProjectImagesRoute = createRoute({
     method: 'get',
     path: '/{projectId}/images',
     summary: 'Get a list of images in a project',
-    description: 'Retrieves a paginated and filtered list of images within a specific project.',
+    description: 'Retrieves a paginated and filtered list of images within a specific project, including the total count for pagination.',
     request: {
         params: z.object({
             projectId: z.uuid(),
@@ -244,12 +244,13 @@ const getProjectImagesRoute = createRoute({
     },
     responses: {
         200: {
-            description: 'Successful response with a list of images, pagination details, and object tags.',
+            description: 'Successful response with a list of images, pagination details, image count, and object tags.',
             content: {
                 'application/json': {
                     schema: z.object({
                         data: z.array(ImageDetailSchema),
                         nextCursor: z.string().nullable(),
+                        total: z.number(), // <-- Added total for pagination
                     }),
                 },
             },
@@ -258,7 +259,7 @@ const getProjectImagesRoute = createRoute({
             description: 'Unauthorized access.',
             content: {
                 'application/json': {
-                schema: ErrorSchema,
+                    schema: ErrorSchema,
                 },
             },
         },
@@ -274,7 +275,7 @@ const getProjectImagesHandler: AppRouteHandler<typeof getProjectImagesRoute> = a
         return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const limit = 20;
+    const limit = 100;
     const filters: SQL[] = [eq(image.projectId, projectId)];
 
     if (viewType === 'PICKED') {
@@ -292,12 +293,17 @@ const getProjectImagesHandler: AppRouteHandler<typeof getProjectImagesRoute> = a
         filters.push(gt(qualityScore.musiqScore, minQualityScore.toString()));
     }
 
+    // For cursor pagination, don't include nextCursor in count query
+    const filtersForCount = [...filters];
+
     if (nextCursor) {
         filters.push(gt(image.id, nextCursor));
     }
 
     const whereClause = filters.length === 1 ? filters[0] : and(...filters)!;
+    const whereClauseForCount = filtersForCount.length === 1 ? filtersForCount[0] : and(...filtersForCount)!;
 
+    // Query for images
     const baseQuery = db
         .select({
             image,
@@ -315,8 +321,16 @@ const getProjectImagesHandler: AppRouteHandler<typeof getProjectImagesRoute> = a
 
     const imageList = await orderedQuery.limit(limit);
 
+    // Query for total count
+    const [{ count }] = await db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(image)
+        .leftJoin(qualityScore, eq(qualityScore.imageId, image.id))
+        .leftJoin(imageSelection, eq(imageSelection.imageId, image.id))
+        .where(whereClauseForCount);
+
     if (imageList.length === 0) {
-        return c.json({ data: [], nextCursor: null }, 200);
+        return c.json({ data: [], nextCursor: null, total: count ?? 0 }, 200);
     }
 
     const imageIds = imageList.map(i => i.image.id);
@@ -341,7 +355,7 @@ const getProjectImagesHandler: AppRouteHandler<typeof getProjectImagesRoute> = a
     const lastImage = imageList[imageList.length - 1];
     const newNextCursor = lastImage ? lastImage.image.id : null;
 
-    return c.json({ data: responseData, nextCursor: newNextCursor }, 200);
+    return c.json({ data: responseData, nextCursor: newNextCursor, total: count ?? 0 }, 200);
 };
 
 app.openapi(getProjectImagesRoute, getProjectImagesHandler);
