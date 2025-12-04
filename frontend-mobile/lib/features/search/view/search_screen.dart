@@ -27,6 +27,7 @@ class _SearchScreenState extends State<SearchScreen> {
   final FocusNode _searchFocusNode = FocusNode();
   final ProjectService _projectService = ProjectService();
   final SearchService _searchService = SearchService();
+  final ScrollController _scrollController = ScrollController();
   int _page = 1;
   final int _limit = 100;
   final Map<String, Future<Uint8List?>> _imageBytesFutures = {};
@@ -40,10 +41,14 @@ class _SearchScreenState extends State<SearchScreen> {
   String _selectedProjectName = '모든 프로젝트';
   List<SearchResultImage> _searchResults = [];
   bool _isLoading = false;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _totalCount = 0;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     if (widget.initialProjectId != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _initProjectFromOutside(widget.initialProjectId!);
@@ -56,40 +61,74 @@ class _SearchScreenState extends State<SearchScreen> {
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _performSearch() async {
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _performSearch({bool reset = true}) async {
     final int currentToken = ++_searchToken;
+    if (reset) {
+      _page = 1;
+    }
+    final int targetPage = _page;
+
     setState(() {
-      _isLoading = true;
+      if (reset) {
+        _isLoading = true;
+        _isLoadingMore = false;
+        _hasMore = true;
+        _imageBytesFutures.clear();
+      } else {
+        _isLoadingMore = true;
+      }
     });
 
     try {
-      final results = await _searchService.searchImages(
+      final resultPage = await _searchService.searchImages(
         projectId: _selectedProjectId,
         detectedObjects: _searchTags,
-        page: _page,
+        page: targetPage,
         limit: _limit,
       );
       if (!mounted) return;
       if (currentToken != _searchToken) return;
       setState(() {
-        _imageBytesFutures.clear();
-        _searchResults = results;
-        _selectedItemIndices.clear();
-        if (_isSelectionMode && results.isEmpty) {
-          _isSelectionMode = false;
+        if (reset) {
+          _searchResults = resultPage.items;
+          _selectedItemIndices.clear();
+          if (_isSelectionMode && _searchResults.isEmpty) {
+            _isSelectionMode = false;
+          }
+        } else {
+          _searchResults = [..._searchResults, ...resultPage.items];
         }
+        _totalCount = resultPage.total;
+        _hasMore = _searchResults.length < _totalCount;
       });
     } catch (e) {
       print('Search failed: $e');
     } finally {
       if (!mounted) return;
       setState(() {
-        _isLoading = false;
+        if (reset) {
+          _isLoading = false;
+        }
+        _isLoadingMore = false;
       });
     }
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoading || _isLoadingMore || !_hasMore) return;
+    _page += 1;
+    await _performSearch(reset: false);
   }
 
   // --- 검색 메서드 ---
@@ -100,7 +139,6 @@ class _SearchScreenState extends State<SearchScreen> {
         _isSelectionMode = false;
         _searchController.clear();
         _selectedItemIndices.clear();
-        _page = 1;
       });
       _performSearch();
       return;
@@ -117,7 +155,6 @@ class _SearchScreenState extends State<SearchScreen> {
       _isSelectionMode = false;
       _selectedItemIndices.clear();
       _searchController.clear();
-      _page = 1;
     });
     _performSearch();
   }
@@ -126,7 +163,6 @@ class _SearchScreenState extends State<SearchScreen> {
     setState(() {
       _searchTags.remove(tag);
       _selectedItemIndices.clear();
-      _page = 1;
     });
     _performSearch();
   }
@@ -136,7 +172,6 @@ class _SearchScreenState extends State<SearchScreen> {
       _searchTags.clear();
       _isSelectionMode = false;
       _selectedItemIndices.clear();
-      _page = 1;
     });
     _performSearch();
   }
@@ -570,7 +605,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         fontSize: 14,
                         color: AppColors.dg1C1F23))
               ]))
-              : Text('이미지 ${_searchResults.length}',
+              : Text('이미지 $_totalCount',
               style: const TextStyle(
                   fontFamily: 'NotoSansRegular',
                   fontSize: 13,
@@ -622,8 +657,12 @@ class _SearchScreenState extends State<SearchScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 3, crossAxisSpacing: 2, mainAxisSpacing: 2),
-      itemCount: _searchResults.length,
+      controller: _scrollController,
+      itemCount: _searchResults.length + (_isLoadingMore ? 1 : 0),
       itemBuilder: (context, index) {
+        if (index >= _searchResults.length) {
+          return const Center(child: CircularProgressIndicator());
+        }
         final isSelected = _selectedItemIndices.contains(index);
         final imageUrl = _searchResults[index].thumbnailUrl;
 
