@@ -46,7 +46,7 @@ class Project {
     if (coverImageId == null || ProjectService.baseUrl == null) {
       return null;
     }
-    return '${ProjectService.baseUrl}/images/$coverImageId/file';
+    return '${ProjectService.baseUrl}/images/$coverImageId/thumbnail';
   }
 }
 
