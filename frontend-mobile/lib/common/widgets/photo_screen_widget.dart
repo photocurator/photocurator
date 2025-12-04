@@ -26,7 +26,8 @@ Future<void> _downloadSelectedImages({
     return;
   }
 
-  final PermissionState permissionState = await PhotoManager.requestPermissionExtend();
+  final PermissionState permissionState =
+      await PhotoManager.requestPermissionExtend();
   if (!permissionState.isAuth) {
     if (!state.mounted) return;
     ScaffoldMessenger.of(state.context).showSnackBar(
@@ -78,6 +79,7 @@ Future<void> _downloadSelectedImages({
 
 abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T> {
   String get screenTitle;
+
   String get viewType; // 'ALL', 'TRASH', 'BEST_SHOTS', 'I_PICKED', 'HIDDEN'
   bool get showBottomActionBar => false; // 기본은 하단 액션바 숨김
   List<ImageItem> get imageItems => [];
@@ -155,7 +157,9 @@ abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T> {
     );
     if (!mounted) return;
     if (success) {
-      context.read<CurrentProjectImagesProvider>().updatePickStatus(item.id, newValue);
+      context
+          .read<CurrentProjectImagesProvider>()
+          .updatePickStatus(item.id, newValue);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('좋아요를 변경하지 못했습니다.')),
@@ -173,7 +177,9 @@ abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T> {
     });
   }
 
-  void selectAll(List<ImageItem> images) => setState(() => selectedImages = List.from(images));
+  void selectAll(List<ImageItem> images) =>
+      setState(() => selectedImages = List.from(images));
+
   void cancelSelection() => setState(() => isSelecting = false);
 
   // --- 추가: 하단 액션바 ---
@@ -188,7 +194,8 @@ abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T> {
         children: [
           _buildActionButton('좋아요', 'assets/icons/button/empty_heart_gray.svg'),
           _buildActionButton('복사', 'assets/icons/button/duplicate_gray.svg'),
-          _buildActionButton('다운로드', 'assets/icons/button/arrow_collapse_down_gray.svg'),
+          _buildActionButton(
+              '다운로드', 'assets/icons/button/arrow_collapse_down_gray.svg'),
           _buildActionButton('삭제', 'assets/icons/button/empty_bin_gray.svg'),
         ],
       ),
@@ -201,75 +208,102 @@ abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T> {
       children: [
         SvgPicture.asset(iconPath, width: 20, height: 20),
         const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 10, color: AppColors.dg495057)),
+        Text(label,
+            style: const TextStyle(fontSize: 10, color: AppColors.dg495057)),
       ],
     );
   }
+
   // --- 여기까지 액션바 추가 ---
 
   @override
   Widget build(BuildContext context) {
     final deviceWidth = MediaQuery.of(context).size.width;
     final imageProvider = context.watch<CurrentProjectImagesProvider>();
-    final images = (imageItems.isEmpty) ? _getImagesFromProvider(imageProvider) : imageItems;
+    final images = (imageItems.isEmpty)
+        ? _getImagesFromProvider(imageProvider)
+        : imageItems;
     final isLoading = imageProvider.isLoading;
 
     return Scaffold(
       backgroundColor: AppColors.wh1,
       appBar: isSelecting
           ? SelectModeAppBar(
-        title: selectedImages.isEmpty
-            ? "전체 선택"
-            : "${selectedImages.length}개 선택됨",
-        deviceWidth: deviceWidth,
-        onSelectAll: () {
-          setState(() {
-            if (selectedImages.length == images.length) {
-              selectedImages.clear();
-            } else {
-              selectedImages = List.from(images);
-            }
-          });
-        },
-        onAddToCompare: onAddToCompare,
-        onDownloadSelected: onDownloadSelected,
-        onDeleteSelected: onDeleteSelected,
-        onCancel: () => cancelSelection(),
-        isAllSelected: selectedImages.length == images.length,
-      )
+              title: selectedImages.isEmpty
+                  ? "전체 선택"
+                  : "${selectedImages.length}개 선택됨",
+              deviceWidth: deviceWidth,
+              onSelectAll: () {
+                setState(() {
+                  if (selectedImages.length == images.length) {
+                    selectedImages.clear();
+                  } else {
+                    selectedImages = List.from(images);
+                  }
+                });
+              },
+              onAddToCompare: onAddToCompare,
+              onDownloadSelected: onDownloadSelected,
+              onDeleteSelected: onDeleteSelected,
+              onCancel: () => cancelSelection(),
+              isAllSelected: selectedImages.length == images.length,
+            )
           : DetailAppBar(
-        title: screenTitle,
-        rightWidget: GestureDetector(
-          onTap: () => setState(() => isSelecting = true),
-          child: Text(
-            "선택",
-            style: TextStyle(
-              fontSize: deviceWidth * (50 / 375) * (14 / 50),
-              color: AppColors.lgADB5BD,
+              title: screenTitle,
+              rightWidget: GestureDetector(
+                onTap: () => setState(() => isSelecting = true),
+                child: Text(
+                  "선택",
+                  style: TextStyle(
+                    fontSize: deviceWidth * (50 / 375) * (14 / 50),
+                    color: AppColors.lgADB5BD,
+                  ),
+                ),
+              ),
             ),
-          ),
-        ),
-      ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-        onRefresh: refreshImages,
-        child: PhotoGrid(
-          images: images,
-          isSelecting: isSelecting,
-          selectedImages: selectedImages,
-          onSelectToggle: toggleSelection,
-          onLongPressItem: () => setState(() => isSelecting = true),
-          onTogglePick: togglePick,
-        ),
-      ),
-
-        bottomSheet:
-        (!isSelecting && showBottomActionBar) ? _buildBottomActionBar() : null,
+          : (images.isEmpty)
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SvgPicture.asset(
+                        "assets/icons/button/image_off_outline.svg",
+                        width: 120,
+                        height: 120,
+                        colorFilter: ColorFilter.mode(AppColors.lgE9ECEF, BlendMode.srcIn),
+                      ),
+                      SizedBox(height: 30), // 간격
+                      Text("이미지가 없습니다",
+                          style: TextStyle(
+                            fontFamily: 'NotoSansRegular',
+                            fontSize: 12,
+                            color: AppColors.lgADB5BD,
+                          )),
+                      SizedBox(height: 10), // 간격
+                    ],
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: refreshImages,
+                  child: PhotoGrid(
+                    images: images,
+                    isSelecting: isSelecting,
+                    selectedImages: selectedImages,
+                    onSelectToggle: toggleSelection,
+                    onLongPressItem: () => setState(() => isSelecting = true),
+                    onTogglePick: togglePick,
+                  ),
+                ),
+      bottomSheet: (!isSelecting && showBottomActionBar)
+          ? _buildBottomActionBar()
+          : null,
     );
   }
 
-  List<ImageItem> _getImagesFromProvider(CurrentProjectImagesProvider provider) {
+  List<ImageItem> _getImagesFromProvider(
+      CurrentProjectImagesProvider provider) {
     switch (viewType) {
       case 'ALL':
         return provider.allImages;
@@ -289,7 +323,9 @@ abstract class BasePhotoScreen<T extends StatefulWidget> extends State<T> {
 
 abstract class BasePhotoContent<T extends StatefulWidget> extends State<T> {
   String get screenTitle;
+
   String get viewType;
+
   bool get showBottomActionBar => false; // 기본은 하단 액션바 숨김
   String sortType = "recommend"; // 기본 정렬
   List<ImageItem> get imageItems => [];
@@ -370,7 +406,9 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T> {
     );
     if (!mounted) return;
     if (success) {
-      context.read<CurrentProjectImagesProvider>().updatePickStatus(item.id, newValue);
+      context
+          .read<CurrentProjectImagesProvider>()
+          .updatePickStatus(item.id, newValue);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('좋아요를 변경하지 못했습니다.')),
@@ -388,14 +426,18 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T> {
     });
   }
 
-  void selectAll(List<ImageItem> images) => setState(() => selectedImages = List.from(images));
+  void selectAll(List<ImageItem> images) =>
+      setState(() => selectedImages = List.from(images));
+
   void cancelSelection() => setState(() => isSelecting = false);
 
   @override
   Widget build(BuildContext context) {
     final deviceWidth = MediaQuery.of(context).size.width;
     final imageProvider = context.watch<CurrentProjectImagesProvider>();
-    final images = (imageItems.isEmpty) ? _getImagesFromProvider(imageProvider) : imageItems;
+    final images = (imageItems.isEmpty)
+        ? _getImagesFromProvider(imageProvider)
+        : imageItems;
 
     final isLoading = imageProvider.isLoading;
 
@@ -403,61 +445,80 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T> {
     _sortImages(images);
 
     return Scaffold(
-      backgroundColor: AppColors.wh1,
-      appBar: isSelecting
-          ? SelectModeAppBar(
-        title: selectedImages.isEmpty
-            ? "전체 선택"
-            : "${selectedImages.length}개 선택됨",
-        deviceWidth: deviceWidth,
-        onSelectAll: () {
-          setState(() {
-            if (selectedImages.length == images.length) {
-              selectedImages.clear();
-            } else {
-              selectedImages = List.from(images);
-            }
-          });
-        },
-        onAddToCompare: onAddToCompare,
-        onDownloadSelected: onDownloadSelected,
-        onDeleteSelected: onDeleteSelected,
-        onCancel: () => cancelSelection(),
-        isAllSelected: selectedImages.length == images.length,
-      )
-          : SortingAppBar(
-        screenTitle: screenTitle,
-        imagesCount: images.length,
-        sortType: sortType,
-        deviceWidth: deviceWidth,
-        onSelectMode: () => setState(() => isSelecting = true),
-        onSortRecommend: () => setState(() => sortType = "recommend"),
-        onSortTime: () => setState(() => sortType = "time"),
-      ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-        onRefresh: refreshImages,
-        child: PhotoGrid(
-          images: images,
-          isSelecting: isSelecting,
-          selectedImages: selectedImages,
-          onSelectToggle: toggleSelection,
-          onLongPressItem: () => setState(() => isSelecting = true),
-          onTogglePick: togglePick,
-        ),
-      ),
-
+        backgroundColor: AppColors.wh1,
+        appBar: isSelecting
+            ? SelectModeAppBar(
+                title: selectedImages.isEmpty
+                    ? "전체 선택"
+                    : "${selectedImages.length}개 선택됨",
+                deviceWidth: deviceWidth,
+                onSelectAll: () {
+                  setState(() {
+                    if (selectedImages.length == images.length) {
+                      selectedImages.clear();
+                    } else {
+                      selectedImages = List.from(images);
+                    }
+                  });
+                },
+                onAddToCompare: onAddToCompare,
+                onDownloadSelected: onDownloadSelected,
+                onDeleteSelected: onDeleteSelected,
+                onCancel: () => cancelSelection(),
+                isAllSelected: selectedImages.length == images.length,
+              )
+            : SortingAppBar(
+                screenTitle: screenTitle,
+                imagesCount: images.length,
+                sortType: sortType,
+                deviceWidth: deviceWidth,
+                onSelectMode: () => setState(() => isSelecting = true),
+                onSortRecommend: () => setState(() => sortType = "recommend"),
+                onSortTime: () => setState(() => sortType = "time"),
+              ),
+        body: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : (images.isEmpty)
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SvgPicture.asset(
+                          "assets/icons/button/image_off_outline.svg",
+                          width: 120,
+                          height: 120,
+                          colorFilter: ColorFilter.mode(AppColors.lgE9ECEF, BlendMode.srcIn),
+                        ),
+                        SizedBox(height: 10), // 간격
+                        Text("이미지가 없습니다",
+                            style: TextStyle(
+                              fontFamily: 'NotoSansRegular',
+                              fontSize: 12,
+                              color: AppColors.lgADB5BD,
+                            )),
+                        SizedBox(height: 10), // 간격
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: refreshImages,
+                    child: PhotoGrid(
+                      images: images,
+                      isSelecting: isSelecting,
+                      selectedImages: selectedImages,
+                      onSelectToggle: toggleSelection,
+                      onLongPressItem: () => setState(() => isSelecting = true),
+                      onTogglePick: togglePick,
+                    ),
+                  ),
         bottomSheet: (!isSelecting && showBottomActionBar)
             ? Container(
-          margin: EdgeInsets.only(bottom: deviceWidth * (60 / 375)),
-          child: ActionBottomBar(
-            selectedImages: selectedImages,
-          ),
-        )
-            : null
-
-    );
+                margin: EdgeInsets.only(bottom: deviceWidth * (60 / 375)),
+                child: ActionBottomBar(
+                  selectedImages: selectedImages,
+                ),
+              )
+            : null);
   }
 
   void _sortImages(List<ImageItem> images) {
@@ -472,7 +533,8 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T> {
     }
   }
 
-  List<ImageItem> _getImagesFromProvider(CurrentProjectImagesProvider provider) {
+  List<ImageItem> _getImagesFromProvider(
+      CurrentProjectImagesProvider provider) {
     switch (viewType) {
       case 'ALL':
         return provider.allImages;
@@ -489,6 +551,3 @@ abstract class BasePhotoContent<T extends StatefulWidget> extends State<T> {
     }
   }
 }
-
-
-

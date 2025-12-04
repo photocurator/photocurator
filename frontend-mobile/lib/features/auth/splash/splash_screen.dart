@@ -76,11 +76,12 @@ class _SplashScreenState extends State<SplashScreen> {
                       ).createShader(bounds);
                     },
                     blendMode: BlendMode.srcIn,
-                    child: SvgPicture.asset(
+                    child:
+                    SvgPicture.asset(
                       "assets/icons/button/logo_one_color.svg",
                       width: 64,
                       height: 64,
-                      colorFilter: ColorFilter.mode(Color(0xFF8A8EBA), BlendMode.srcIn),
+                      colorFilter: ColorFilter.mode(Color(0x008A8EBA), BlendMode.srcIn), //투명하게
                     ),
                   ),
 
@@ -88,7 +89,7 @@ class _SplashScreenState extends State<SplashScreen> {
                     "assets/icons/button/logo_one_color.svg",
                     width: 64,
                     height: 64,
-                    colorFilter: ColorFilter.mode(AppColors.wh1, BlendMode.srcIn),
+                    colorFilter: ColorFilter.mode(Color(0x008A8EBA), BlendMode.srcIn),
                   ),
                 ],
               )

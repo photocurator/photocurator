@@ -14,7 +14,9 @@ import 'package:photocurator/features/home/detail_view/photo_screen.dart';
 import 'package:flutter_better_auth/flutter_better_auth.dart';
 
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key});
+  final String? initialProjectId;
+
+  const SearchScreen({Key? key, this.initialProjectId}) : super(key: key);
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -42,6 +44,11 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialProjectId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _initProjectFromOutside(widget.initialProjectId!);
+      });
+    }
     _performSearch();
   }
 
@@ -131,6 +138,26 @@ class _SearchScreenState extends State<SearchScreen> {
       _selectedItemIndices.clear();
       _page = 1;
     });
+    _performSearch();
+  }
+
+  // 더보기 검색 버튼 이동 시
+  Future<void> _initProjectFromOutside(String projectId) async {
+    String newProjectName = '모든 프로젝트';
+
+    final projects = await _projectService.getProjects();
+    try {
+      final selectedProject = projects.firstWhere((p) => p.id == projectId);
+      newProjectName = selectedProject.projectName;
+    } catch (e) {
+      print('Error finding project by ID: $e');
+    }
+
+    setState(() {
+      _selectedProjectId = projectId;
+      _selectedProjectName = newProjectName;
+    });
+
     _performSearch();
   }
 
@@ -381,7 +408,10 @@ class _SearchScreenState extends State<SearchScreen> {
                   border: Border.all(color: AppColors.lgE9ECEF),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Text(_selectedProjectName,
+                child: Text(
+                    _selectedProjectName.length > 10
+                        ? _selectedProjectName.substring(0, 10) + "..."
+                        : _selectedProjectName,
                     style: const TextStyle(
                         fontFamily: 'NotoSansMedium',
                         fontSize: 12,

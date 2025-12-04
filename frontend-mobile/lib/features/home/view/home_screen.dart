@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 //import 'package:photocurator/common/bar/view/app_bar.dart';
 import 'package:photocurator/common/bar/view/detail_app_bar.dart';
@@ -21,6 +22,7 @@ import './grade_screen.dart';
 import './subject_screen.dart';
 import './setting_screen.dart';
 import 'package:photocurator/features/start/view/photo_selection_screen.dart';
+import 'package:photocurator/features/search/view/search_screen.dart';
 import 'package:photocurator/provider/current_project_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -42,6 +44,7 @@ class HomeScreen extends StatelessWidget {
     final currentProjectProvider = context.watch<CurrentProjectProvider>();
     final String pjname =
         currentProjectProvider.currentProject?.projectName ?? "project name";
+    final String? selectedProjectId = currentProjectProvider?.currentProject?.id;
 
     return Scaffold(
       backgroundColor: AppColors.wh1,
@@ -72,8 +75,9 @@ class HomeScreen extends StatelessWidget {
           ),
           DropdownItem(
             text: "검색",
-            onTap: () => print("검색 클릭"),
+            onTap: () => context.push('/search', extra: selectedProjectId)
           ),
+          /*
           DropdownItem(
             text: "휴지통",
             onTap: () {
@@ -83,6 +87,7 @@ class HomeScreen extends StatelessWidget {
               );
             },
           ),
+           */
           DropdownItem(
             text: "비교 뷰",
             onTap: () {
