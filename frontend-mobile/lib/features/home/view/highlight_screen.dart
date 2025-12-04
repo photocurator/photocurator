@@ -25,21 +25,41 @@ class HighlightScreen extends StatefulWidget {
 }
 
 class _HighlightScreenState extends State<HighlightScreen> {
-  late PageController _pageController;
+  PageController? _pageController;
+  double _lastViewportFraction = 1.0;
   int pageIndex = 0;
+  final Map<String, Future<Uint8List?>> _imageBytesCache = {};
 
   Future<Uint8List?> _fetchImageBytes(String imageId) async {
-    try {
-      final dio = FlutterBetterAuth.dioClient;
-      final response = await dio.get(
-        '${dotenv.env['API_BASE_URL']}/images/$imageId/file',
-        options: Options(responseType: ResponseType.bytes),
-      );
-      return response.data;
-    } catch (e) {
-      debugPrint('Failed to fetch image bytes: $e');
-      return null;
-    }
+    // Cache in-flight/completed requests to avoid refetching on scroll rebuilds.
+    return _imageBytesCache.putIfAbsent(imageId, () async {
+      try {
+        final dio = FlutterBetterAuth.dioClient;
+        final response = await dio.get(
+          '${dotenv.env['API_BASE_URL']}/images/$imageId/file',
+          options: Options(responseType: ResponseType.bytes),
+        );
+        final data = response.data;
+        if (data is Uint8List) return data;
+        if (data is List<int>) return Uint8List.fromList(data);
+        return null;
+      } catch (e) {
+        debugPrint('Failed to fetch image bytes: $e');
+        return null;
+      }
+    });
+  }
+
+  Future<void> _onRefresh() async {
+    final projectId = context.read<CurrentProjectProvider>().currentProject?.id;
+    if (projectId == null) return;
+    await context.read<CurrentProjectImagesProvider>().loadAllImages(projectId);
+  }
+
+  @override
+  void dispose() {
+    _pageController?.dispose();
+    super.dispose();
   }
 
   @override
@@ -50,7 +70,11 @@ class _HighlightScreenState extends State<HighlightScreen> {
 
     // 다음 카드 20px 보이게
     final viewportFraction = bannerWidth / (bannerWidth + 20);
-    _pageController = PageController(viewportFraction: viewportFraction);
+    if (_pageController == null || _lastViewportFraction != viewportFraction) {
+      _pageController?.dispose();
+      _pageController = PageController(viewportFraction: viewportFraction);
+      _lastViewportFraction = viewportFraction;
+    }
 
     final imageProvider = context.watch<CurrentProjectImagesProvider>();
     final allImages = imageProvider.allImages;
@@ -64,269 +88,272 @@ class _HighlightScreenState extends State<HighlightScreen> {
     final topImages = bannerImages.take(3).toList();
 
     return Scaffold(
-      backgroundColor: AppColors.wh1,
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 20),
+        backgroundColor: AppColors.wh1,
+        body: RefreshIndicator(
+          onRefresh: _onRefresh,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 20),
 
-            // 배너
-            SizedBox(
-              height: bannerHeight,
-              child: PageView.builder(
-                controller: _pageController,
-                itemCount: topImages.length,
-                onPageChanged: (i) => setState(() => pageIndex = i),
-                physics: const BouncingScrollPhysics(),
-                itemBuilder: (context, index) {
-                  final img = topImages[index];
-                  final isCurrent = index == pageIndex;
-                  final isNext = index == pageIndex + 1;
+                // 배너
+                SizedBox(
+                  height: bannerHeight,
+                  child: PageView.builder(
+                    controller: _pageController,
+                    itemCount: topImages.length,
+                    onPageChanged: (i) => setState(() => pageIndex = i),
+                    physics: const BouncingScrollPhysics(),
+                    itemBuilder: (context, index) {
+                      final img = topImages[index];
+                      final isCurrent = index == pageIndex;
+                      final isNext = index == pageIndex + 1;
 
-                  BorderRadius radius;
-                  if (isCurrent) {
-                    radius = const BorderRadius.all(Radius.circular(16));
-                  } else if (isNext) {
-                    radius = const BorderRadius.only(
-                      topLeft: Radius.circular(16),
-                      bottomLeft: Radius.circular(16),
-                    );
-                  } else {
-                    radius = BorderRadius.zero;
-                  }
+                      BorderRadius radius;
+                      if (isCurrent) {
+                        radius = const BorderRadius.all(Radius.circular(16));
+                      } else if (isNext) {
+                        radius = const BorderRadius.only(
+                          topLeft: Radius.circular(16),
+                          bottomLeft: Radius.circular(16),
+                        );
+                      } else {
+                        radius = BorderRadius.zero;
+                      }
 
-                  return Align(
-                    alignment: Alignment.centerLeft,
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 10),
-                      width: bannerWidth,
-                      height: bannerHeight,
-                      decoration: BoxDecoration(
-                        color: AppColors.lgE9ECEF,
-                        borderRadius: radius,
-                      ),
-                      clipBehavior: Clip.hardEdge,
-                      child: FutureBuilder<Uint8List?>(
-                        future: _fetchImageBytes(img.id),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                                  ConnectionState.done &&
-                              snapshot.hasData) {
-                            return Image.memory(
-                              snapshot.data!,
-                              fit: BoxFit.cover,
-                              width: bannerWidth,
-                              height: bannerHeight,
-                            );
-                          }
-                          // 로딩 시: 배경색만 표시
-                          return const SizedBox.expand();
-                        },
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            const SizedBox(height: 36),
-
-            // 🔽 기존 UI 그대로
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 30),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      "더 많은 AI 추천과\n함께해 보세요",
-                      style: TextStyle(
-                        fontFamily: 'NotoSansRegular',
-                        fontSize: deviceWidth * (18 / 375),
-                        color: AppColors.dg1C1F23,
-                        letterSpacing: 0,
-                      ),
-                      textAlign: TextAlign.left,
-                    ),
+                      return Align(
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 10),
+                          width: bannerWidth,
+                          height: bannerHeight,
+                          decoration: BoxDecoration(
+                            color: AppColors.lgE9ECEF,
+                            borderRadius: radius,
+                          ),
+                          clipBehavior: Clip.hardEdge,
+                          child: FutureBuilder<Uint8List?>(
+                            future: _fetchImageBytes(img.id),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                      ConnectionState.done &&
+                                  snapshot.hasData) {
+                                return Image.memory(
+                                  snapshot.data!,
+                                  fit: BoxFit.cover,
+                                  width: bannerWidth,
+                                  height: bannerHeight,
+                                );
+                              }
+                              // 로딩 시: 배경색만 표시
+                              return const SizedBox.expand();
+                            },
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                  GestureDetector(
-                    onTap: widget.onMoveToGrade,
-                    child: Container(
-                      width: deviceWidth * (150 / 375),
-                      height: deviceWidth * (50 / 375),
-                      decoration: BoxDecoration(
-                        color: Colors.transparent,
-                        borderRadius: BorderRadius.circular(26),
-                        border: Border.all(
-                          color: const Color(0xFFADB5BD),
-                          width: 1,
+                ),
+
+                const SizedBox(height: 36),
+
+                // 🔽 기존 UI 그대로
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 30),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          "더 많은 AI 추천과\n함께해 보세요",
+                          style: TextStyle(
+                            fontFamily: 'NotoSansRegular',
+                            fontSize: deviceWidth * (18 / 375),
+                            color: AppColors.dg1C1F23,
+                            letterSpacing: 0,
+                          ),
+                          textAlign: TextAlign.left,
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          // 왼쪽 원형 + 그림자 + 플러스 아이콘
-                          Container(
-                            width: deviceWidth * (50 / 375),
-                            height: deviceWidth * (50 / 375),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppColors.wh1,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.15),
-                                  offset: const Offset(4, 0),
-                                  blurRadius: 4,
-                                ),
-                              ],
-                            ),
-                            child: Center(
-                              child: Icon(
-                                Icons.add,
-                                size: deviceWidth * (24 / 375),
-                                color: AppColors.dg1C1F23,
-                              ),
+                      GestureDetector(
+                        onTap: widget.onMoveToGrade,
+                        child: Container(
+                          width: deviceWidth * (150 / 375),
+                          height: deviceWidth * (50 / 375),
+                          decoration: BoxDecoration(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(26),
+                            border: Border.all(
+                              color: const Color(0xFFADB5BD),
+                              width: 1,
                             ),
                           ),
-                          Expanded(
-                            child: Center(
-                              child: Text(
-                                "베스트 샷",
+                          child: Row(
+                            children: [
+                              // 왼쪽 원형 + 그림자 + 플러스 아이콘
+                              Container(
+                                width: deviceWidth * (50 / 375),
+                                height: deviceWidth * (50 / 375),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppColors.wh1,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.15),
+                                      offset: const Offset(4, 0),
+                                      blurRadius: 4,
+                                    ),
+                                  ],
+                                ),
+                                child: Center(
+                                  child: Icon(
+                                    Icons.add,
+                                    size: deviceWidth * (24 / 375),
+                                    color: AppColors.dg1C1F23,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Center(
+                                  child: Text(
+                                    "베스트 샷",
+                                    style: TextStyle(
+                                      fontFamily: 'NotoSansRegular',
+                                      fontSize: deviceWidth * (12 / 375),
+                                      color: AppColors.dg1C1F23,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 200),
+
+                SizedBox(
+                  height: 160,
+                  width: double.infinity,
+                  child: ClipRRect(
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        // 중심에서 퍼지는 그라디언트 배경
+                        Container(
+                          decoration: const BoxDecoration(
+                            gradient: RadialGradient(
+                              center: Alignment(0.0, -0.3), // 약간 위쪽
+                              radius: 1.8, // 크게 퍼지도록 조정 → 가로로 퍼지는 듯 보임
+                              colors: [
+                                AppColors.wh1, // 중앙 밝은 톤
+                                Color(0xFFE8EBF7), // 중앙 밝은 톤
+                                Color(0xFFDDE1EF),
+                                Color(0xFFCCD2E4),
+                              ],
+                              stops: [0.0, 0.2, 0.55, 1.0],
+                            ),
+                          ),
+                        ),
+
+                        // Blur 효과
+                        BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 70, sigmaY: 70),
+                          child: Container(
+                            color: Colors.transparent,
+                          ),
+                        ),
+
+                        // 실제 콘텐츠
+                        Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                "그룹",
                                 style: TextStyle(
-                                  fontFamily: 'NotoSansRegular',
-                                  fontSize: deviceWidth * (12 / 375),
+                                  fontFamily: 'NotoSansMedium',
+                                  fontSize: deviceWidth * (18 / 375),
                                   color: AppColors.dg1C1F23,
                                 ),
                               ),
-                            ),
+                              const SizedBox(height: 10),
+                              Text(
+                                "AI 자동 그룹핑을 경험해보세요!",
+                                style: TextStyle(
+                                  fontFamily: 'NotoSansRegular',
+                                  fontSize: deviceWidth * (15 / 375),
+                                  color: AppColors.dg1C1F23,
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 200),
-
-            SizedBox(
-              height: 160,
-              width: double.infinity,
-              child: ClipRRect(
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // 중심에서 퍼지는 그라디언트 배경
-                    Container(
-                      decoration: const BoxDecoration(
-                        gradient: RadialGradient(
-                          center: Alignment(0.0, -0.3), // 약간 위쪽
-                          radius: 1.8, // 크게 퍼지도록 조정 → 가로로 퍼지는 듯 보임
-                          colors: [
-                            AppColors.wh1, // 중앙 밝은 톤
-                            Color(0xFFE8EBF7), // 중앙 밝은 톤
-                            Color(0xFFDDE1EF),
-                            Color(0xFFCCD2E4),
-                          ],
-                          stops: [0.0, 0.2, 0.55, 1.0],
                         ),
-                      ),
+                      ],
                     ),
-
-                    // Blur 효과
-                    BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 70, sigmaY: 70),
-                      child: Container(
-                        color: Colors.transparent,
-                      ),
-                    ),
-
-                    // 실제 콘텐츠
-                    Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            "그룹",
-                            style: TextStyle(
-                              fontFamily: 'NotoSansMedium',
-                              fontSize: deviceWidth * (18 / 375),
-                              color: AppColors.dg1C1F23,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            "AI 자동 그룹핑을 경험해보세요!",
-                            style: TextStyle(
-                              fontFamily: 'NotoSansRegular',
-                              fontSize: deviceWidth * (15 / 375),
-                              color: AppColors.dg1C1F23,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            GroupCard(
-              groups: groups,
-              onTap: (group) {
-                debugPrint('그룹 클릭: ${group.id}');
-
-                // 상세 화면으로 이동
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => GroupDetailScreen(group: group),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 200),
-            Container(
-              height: deviceWidth * (50 / 375), // 요청한 높이
-              alignment: Alignment.center,
-              child: Text(
-                "숨긴 사진",
-                style: TextStyle(
-                  fontFamily: 'NotoSansMedium', // 노토산스미디움
-                  fontSize: deviceWidth * (18 / 375), // 폰트 크기
-                  color: AppColors.dg1C1F23, // 원하는 색상으로 변경 가능
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            const ShimmerPlaceholderRow(),
-            const SizedBox(height: 20),
-            Center(
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const HideScreen(), // 숨긴 사진 화면
-                    ),
-                  );
-                },
-                child: Text(
-                  "자세히 보기",
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontFamily: 'NotoSansRegular',
-                    decoration: TextDecoration.underline,
-                    color: AppColors.lgADB5BD,
                   ),
                 ),
-              ),
+                const SizedBox(height: 20),
+                GroupCard(
+                  groups: groups,
+                  onTap: (group) {
+                    debugPrint('그룹 클릭: ${group.id}');
+
+                    // 상세 화면으로 이동
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => GroupDetailScreen(group: group),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 200),
+                Container(
+                  height: deviceWidth * (50 / 375), // 요청한 높이
+                  alignment: Alignment.center,
+                  child: Text(
+                    "숨긴 사진",
+                    style: TextStyle(
+                      fontFamily: 'NotoSansMedium', // 노토산스미디움
+                      fontSize: deviceWidth * (18 / 375), // 폰트 크기
+                      color: AppColors.dg1C1F23, // 원하는 색상으로 변경 가능
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const ShimmerPlaceholderRow(),
+                const SizedBox(height: 20),
+                Center(
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const HideScreen(), // 숨긴 사진 화면
+                        ),
+                      );
+                    },
+                    child: Text(
+                      "자세히 보기",
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontFamily: 'NotoSansRegular',
+                        decoration: TextDecoration.underline,
+                        color: AppColors.lgADB5BD,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 100),
+              ],
             ),
-            const SizedBox(height: 100),
-          ],
-        ),
-      ),
-    );
+          ),
+        ));
   }
 }
 
