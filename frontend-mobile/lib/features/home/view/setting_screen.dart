@@ -178,5 +178,10 @@ class _SettingScreenContentState
   String? get groupBy => null;
 
   @override
-  List<ImageItem> get imageItems => widget.images;
+  List<ImageItem> get imageItems {
+    // Use the provider's latest items so like/pick state updates reflect immediately.
+    final provider = context.read<CurrentProjectImagesProvider>();
+    final byId = {for (final img in provider.allImages) img.id: img};
+    return widget.images.map((img) => byId[img.id] ?? img).toList();
+  }
 }
