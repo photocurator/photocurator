@@ -58,6 +58,13 @@ class SearchResultImage {
   }
 }
 
+class SearchResultPage {
+  final List<SearchResultImage> items;
+  final int total;
+
+  SearchResultPage({required this.items, required this.total});
+}
+
 class SearchService {
   late Dio _dio;
   static String? baseUrl;
@@ -70,13 +77,14 @@ class SearchService {
     }
   }
 
-  Future<List<SearchResultImage>> searchImages({
+  Future<SearchResultPage> searchImages({
     String? projectId,
     List<String> detectedObjects = const [],
     int page = 1,
     int limit = 100,
   }) async {
     try {
+      // Always send page/limit as query parameters for backend pagination.
       final params = <String, dynamic>{
         'page': page,
         'limit': limit,
@@ -97,14 +105,21 @@ class SearchService {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data['data'] ?? [];
-        return data.map((json) => SearchResultImage.fromJson(json)).toList();
-      } else {
-        print('Failed to search images: ${response.statusCode}');
-        return [];
+        final int total = response.data['total'] is int
+            ? response.data['total']
+            : (response.data['total'] as num?)?.toInt() ?? data.length;
+
+        final items =
+            data.map((json) => SearchResultImage.fromJson(json)).toList();
+
+        return SearchResultPage(items: items, total: total);
       }
+
+      print('Failed to search images: ${response.statusCode}');
+      return SearchResultPage(items: const [], total: 0);
     } catch (e) {
       print('Error searching images: $e');
-      return [];
+      return SearchResultPage(items: const [], total: 0);
     }
   }
 
