@@ -34,6 +34,7 @@ class ScaffoldWithNestedNavigation extends StatelessWidget {
 class _FancyBottomNav extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
+
   const _FancyBottomNav({
     required this.currentIndex,
     required this.onTap,
@@ -41,19 +42,19 @@ class _FancyBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Use fixed height to avoid shrinking/overflow across devices
     const double navHeight = 64;
-    const inactive = AppColors.lgADB5BD; // 비활???�스???�이�?
+    const inactive = AppColors.lgADB5BD;
 
-    return SizedBox(
-      width: double.infinity,
-      height: navHeight,
-      child: DecoratedBox(
-        decoration: const BoxDecoration(
-          color: AppColors.wh1,
-        ),
-        child: SafeArea(
-          top: false,
+    return SafeArea(
+      top: false,        // 위는 안전 영역 필요 없음
+      bottom: true,      // 아래만 보호
+      child: SizedBox(
+        width: double.infinity,
+        height: navHeight,
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+            color: AppColors.wh1,
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -71,12 +72,9 @@ class _FancyBottomNav extends StatelessWidget {
                 onTap: () => onTap(1),
                 child: Image.asset(
                   'assets/icons/navigator/logo.png',
-                  width: navHeight * 0.35,        // 60 기�?????38?�라???�??0.63
+                  width: navHeight * 0.35,
                   height: navHeight * 0.35,
                   fit: BoxFit.contain,
-                  // 로고가 ?�색?�면 ??보일 ???�으??
-                  // ?�요?�면 colorFilter�?????��?�기 가??
-                  // colorFilter: const ColorFilter.mode(Colors.black, BlendMode.srcIn),
                 ),
               ),
               _NavItem(
@@ -94,6 +92,7 @@ class _FancyBottomNav extends StatelessWidget {
     );
   }
 }
+
 
 /// �????�스???�이�?
 class _NavItem extends StatelessWidget {
