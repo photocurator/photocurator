@@ -48,6 +48,7 @@ class _GroupDetailScreenState extends BasePhotoScreen<GroupDetailScreen> {
 
       setState(() {
         groupImages = imgs;
+        groupImages.sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
         isLoading = false;
       });
     } catch (e) {

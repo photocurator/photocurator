@@ -85,49 +85,50 @@ class GroupCard extends StatelessWidget {
                         ),
                       ),
 
-                    // 내용 오버레이
-                    Positioned(
-                      left: 20,
-                      top: 20,
-                      right: 20,
+                    // Content Overlay
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "${group.memberCount}장",
-                            style: const TextStyle(
-                              fontFamily: 'NotoSansMedium',
-                              fontSize: 16,
-                              color: Colors.white,
-                              shadows: [
-                                Shadow(
-                                  offset: Offset(0, 0),
-                                  blurRadius: 4,
-                                  color: Color.fromRGBO(20, 50, 60, 0.4),
-                                ),
-                              ],
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _formatDate(group.timeRangeStart, group.timeRangeEnd),
-                            style: const TextStyle(
-                              fontFamily: 'NotoSansRegular',
-                              fontSize: 12,
-                              color: Colors.white,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                      // Title
+                      Text(
+                      group.groupType =="similar"? "유사 \n ${group.memberCount}" : "위치 \n ${group.memberCount}",
+                          style: const TextStyle(
+                          fontFamily: 'NotoSansMedium',
+                      fontSize: 15,
+                      color: AppColors.wh1, // White text
+                      shadows: [
+                      Shadow(
+                      offset: Offset(0, 0),
+                      blurRadius: 4,
+                      color: Color.fromRGBO(28, 31, 40, 0.3),
                     ),
                   ],
                 ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
+
+              // Date
+              Text(
+                _formatDate(group.timeRangeStart, group.timeRangeEnd),
+                style: const TextStyle(
+                  fontFamily: 'NotoSansRegular',
+                  fontSize: 10,
+                  color: AppColors.wh1,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              ],
             ),
+          ),
+          ],
+          ),
+          ),
+          ),
           );
         },
       ),
@@ -140,4 +141,3 @@ class GroupCard extends StatelessWidget {
     return "${pickDate.year}.${pickDate.month.toString().padLeft(2, '0')}.${pickDate.day.toString().padLeft(2, '0')}";
   }
 }
-
