@@ -590,6 +590,112 @@ app.openapi(getImageFileRoute, async (c) => {
     });
 });
 
+
+const getImageThumbnailRoute = createRoute({
+  method: 'get',
+  path: '/{imageId}/thumbnail',
+  summary: 'Get image thumbnail',
+  description: 'Serves the thumbnail of the image. Fallbacks to original image if thumbnail is not ready.',
+  request: {
+    params: z.object({
+      imageId: z.uuid(),
+    }),
+  },
+  responses: {
+    200: {
+      description: 'The image thumbnail.',
+      content: {
+        'image/*': {
+          schema: z.string().openapi({ format: 'binary' }),
+        },
+      },
+    },
+    401: {
+        description: 'Unauthorized access.',
+        content: {
+            'application/json': {
+            schema: ErrorSchema,
+            },
+        },
+    },
+    404: {
+        description: 'Image not found or unauthorized.',
+        content: {
+            'application/json': {
+            schema: ErrorSchema,
+            },
+        },
+    },
+  },
+});
+
+app.openapi(getImageThumbnailRoute, async (c) => {
+    const { imageId } = c.req.param();
+    const user = c.get('user');
+
+    if (!user) {
+        return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    // Helper to find image
+    const findImage = async () => {
+        // Try direct ownership
+        const imageRecord = await db
+            .select({
+                storagePath: imageTable.storagePath,
+                thumbnailPath: imageTable.thumbnailPath,
+                mimeType: imageTable.mimeType,
+            })
+            .from(imageTable)
+            .where(and(eq(imageTable.id, imageId), eq(imageTable.userId, user.id)))
+            .limit(1);
+        if (imageRecord.length > 0) return imageRecord[0];
+
+        // Try project ownership
+        const imageInProject = await db
+            .select({
+                storagePath: imageTable.storagePath,
+                thumbnailPath: imageTable.thumbnailPath,
+                mimeType: imageTable.mimeType,
+            })
+            .from(imageTable)
+            .innerJoin(project, eq(imageTable.projectId, project.id))
+            .where(and(
+                eq(imageTable.id, imageId),
+                eq(project.userId, user.id)
+            ))
+            .limit(1);
+        
+        if (imageInProject.length > 0) return imageInProject[0];
+        return null;
+    };
+
+    const record = await findImage();
+    if (!record) {
+        return c.json({ error: 'Image not found or unauthorized' }, 404);
+    }
+
+    // Serve thumbnail if exists
+    if (record.thumbnailPath) {
+        const thumbFile = Bun.file(record.thumbnailPath);
+        if (await thumbFile.exists()) {
+            return new Response(thumbFile, {
+                headers: {
+                    'Content-Type': 'image/webp', // Thumbnails are WebP
+                },
+            });
+        }
+    }
+
+    // Fallback to original
+    const file = Bun.file(record.storagePath);
+    return new Response(file, {
+        headers: {
+            'Content-Type': record.mimeType,
+        },
+    });
+});
+
 const patchImageRoute = createRoute({
     method: 'patch',
     path: '/{imageId}',
@@ -829,7 +935,7 @@ const BatchRejectResponseSchema = z.object({
     error: z.string(),
   })),
 });
-
+ 
 const postBatchImageRejectRoute = createRoute({
   method: 'post',
   path: '/batch-reject',
@@ -958,6 +1064,94 @@ app.openapi(postBatchImageRejectRoute, async (c) => {
   }
 
   return c.json({ succeeded, failed });
+});
+
+const BatchUpdateImagesSchema = z.object({
+    imageIds: z.array(z.uuid()),
+    compareViewSelected: z.boolean(),
+});
+
+const postBatchUpdateImagesRoute = createRoute({
+    method: 'post',
+    path: '/batch-update',
+    summary: 'Batch update images',
+    description: 'Updates the `compareViewSelected` status for multiple images.',
+    request: {
+        body: {
+            content: {
+                'application/json': {
+                    schema: BatchUpdateImagesSchema,
+                },
+            },
+        },
+    },
+    responses: {
+        200: {
+            description: 'Batch update results.',
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        updatedCount: z.number(),
+                        message: z.string(),
+                    }),
+                },
+            },
+        },
+        401: {
+             description: 'Unauthorized access.',
+             content: {
+                 'application/json': {
+                 schema: ErrorSchema,
+                 },
+             },
+         },
+    }
+});
+
+app.openapi(postBatchUpdateImagesRoute, async (c) => {
+    const { imageIds, compareViewSelected } = c.req.valid('json');
+    const user = c.get('user');
+
+    if (!user) {
+        return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    if (imageIds.length === 0) {
+        return c.json({ updatedCount: 0, message: 'No images provided' }, 200);
+    }
+
+    // 1. Identify valid images (user owns image OR user owns project containing image)
+    const validImages = await db
+        .select({ id: imageTable.id })
+        .from(imageTable)
+        .leftJoin(project, eq(imageTable.projectId, project.id))
+        .where(and(
+            inArray(imageTable.id, imageIds),
+            or(
+                eq(imageTable.userId, user.id),
+                and(
+                    eq(project.userId, user.id),
+                    eq(imageTable.projectId, project.id)
+                )
+            )
+        ));
+
+    const validImageIds = validImages.map(i => i.id);
+
+    if (validImageIds.length === 0) {
+        return c.json({ updatedCount: 0, message: 'No valid images found or unauthorized' }, 200);
+    }
+
+    // 2. Perform update
+    await db
+        .update(imageTable)
+        .set({ compareViewSelected })
+        .where(inArray(imageTable.id, validImageIds));
+
+    return c.json({
+        updatedCount: validImageIds.length,
+        message: 'Images updated successfully'
+    }, 200);
 });
 
 export default app;

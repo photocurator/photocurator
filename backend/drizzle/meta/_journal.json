@@ -43,6 +43,20 @@
       "when": 1764541695956,
       "tag": "0005_windy_midnight",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1764739694523,
+      "tag": "0006_zippy_pixie",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1764767734731,
+      "tag": "0007_burly_squadron_supreme",
+      "breakpoints": true
     }
   ]
 }

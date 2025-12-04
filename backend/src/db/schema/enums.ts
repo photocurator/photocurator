@@ -30,7 +30,7 @@ export const groupTypeEnum = pgEnum("group_type", ["similar", "burst", "sequence
  * - `similarity_grouping`: Job to group similar images.
  * - `best_shot_recommendation`: Job to recommend the best shot from a group.
  */
-export const jobTypeEnum = pgEnum("job_type", ["quality_analysis", "object_detection", "similarity_grouping", "best_shot_recommendation", "exif_analysis", "image_captioning", "gps_grouping"]);
+export const jobTypeEnum = pgEnum("job_type", ["thumbnail_generation", "quality_analysis", "object_detection", "similarity_grouping", "best_shot_recommendation", "exif_analysis", "image_captioning", "gps_grouping"]);
 
 /**
  * Enum for the status of a bulk analysis job.

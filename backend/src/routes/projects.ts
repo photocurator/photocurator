@@ -8,7 +8,7 @@ import type { RouteHandler } from '@hono/zod-openapi';
 import { z } from 'zod';
 import { db } from '../db';
 import { project, image, qualityScore, imageSelection, objectTag, analysisJob, analysisJobItem, imageGroup, imageGroupMembership } from '../db/schema';
-import { eq, and, gt, desc, inArray, sql } from 'drizzle-orm';
+import { eq, and, gt, desc, inArray, sql, isNull } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 import { mkdir, writeFile } from 'fs/promises';
 import { randomUUID } from 'crypto';
@@ -230,7 +230,7 @@ const getProjectImagesRoute = createRoute({
     method: 'get',
     path: '/{projectId}/images',
     summary: 'Get a list of images in a project',
-    description: 'Retrieves a paginated and filtered list of images within a specific project.',
+    description: 'Retrieves a paginated and filtered list of images within a specific project, including the total count for pagination.',
     request: {
         params: z.object({
             projectId: z.uuid(),
@@ -244,12 +244,13 @@ const getProjectImagesRoute = createRoute({
     },
     responses: {
         200: {
-            description: 'Successful response with a list of images, pagination details, and object tags.',
+            description: 'Successful response with a list of images, pagination details, image count, and object tags.',
             content: {
                 'application/json': {
                     schema: z.object({
                         data: z.array(ImageDetailSchema),
                         nextCursor: z.string().nullable(),
+                        total: z.number(), // <-- Added total for pagination
                     }),
                 },
             },
@@ -258,7 +259,7 @@ const getProjectImagesRoute = createRoute({
             description: 'Unauthorized access.',
             content: {
                 'application/json': {
-                schema: ErrorSchema,
+                    schema: ErrorSchema,
                 },
             },
         },
@@ -274,7 +275,7 @@ const getProjectImagesHandler: AppRouteHandler<typeof getProjectImagesRoute> = a
         return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const limit = 20;
+    const limit = 100;
     const filters: SQL[] = [eq(image.projectId, projectId)];
 
     if (viewType === 'PICKED') {
@@ -292,12 +293,17 @@ const getProjectImagesHandler: AppRouteHandler<typeof getProjectImagesRoute> = a
         filters.push(gt(qualityScore.musiqScore, minQualityScore.toString()));
     }
 
+    // For cursor pagination, don't include nextCursor in count query
+    const filtersForCount = [...filters];
+
     if (nextCursor) {
         filters.push(gt(image.id, nextCursor));
     }
 
     const whereClause = filters.length === 1 ? filters[0] : and(...filters)!;
+    const whereClauseForCount = filtersForCount.length === 1 ? filtersForCount[0] : and(...filtersForCount)!;
 
+    // Query for images
     const baseQuery = db
         .select({
             image,
@@ -315,8 +321,16 @@ const getProjectImagesHandler: AppRouteHandler<typeof getProjectImagesRoute> = a
 
     const imageList = await orderedQuery.limit(limit);
 
+    // Query for total count
+    const [{ count }] = await db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(image)
+        .leftJoin(qualityScore, eq(qualityScore.imageId, image.id))
+        .leftJoin(imageSelection, eq(imageSelection.imageId, image.id))
+        .where(whereClauseForCount);
+
     if (imageList.length === 0) {
-        return c.json({ data: [], nextCursor: null }, 200);
+        return c.json({ data: [], nextCursor: null, total: count ?? 0 }, 200);
     }
 
     const imageIds = imageList.map(i => i.image.id);
@@ -341,7 +355,7 @@ const getProjectImagesHandler: AppRouteHandler<typeof getProjectImagesRoute> = a
     const lastImage = imageList[imageList.length - 1];
     const newNextCursor = lastImage ? lastImage.image.id : null;
 
-    return c.json({ data: responseData, nextCursor: newNextCursor }, 200);
+    return c.json({ data: responseData, nextCursor: newNextCursor, total: count ?? 0 }, 200);
 };
 
 app.openapi(getProjectImagesRoute, getProjectImagesHandler);
@@ -451,7 +465,7 @@ const uploadProjectImagesHandler: AppRouteHandler<typeof uploadProjectImagesRout
         const jobItemsToInsert: typeof analysisJobItem.$inferInsert[] = [];
         const batchRequestRequests: { image_id: string; task_name: string; job_item_id: string }[] = [];
 
-        const tasks = ['exif_analysis', 'similarity_grouping'];
+        const tasks = ['thumbnail_generation', 'exif_analysis'];
         for (const imgId of uploadedImageIds) {
             for (const task of tasks) {
                 const jobItemId = randomUUID();
@@ -796,6 +810,101 @@ const ImageGroupSchema = z.object({
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
+
+
+const generateThumbnailsRoute = createRoute({
+    method: 'post',
+    path: '/{projectId}/generate-thumbnails',
+    summary: 'Trigger thumbnail generation',
+    description: 'Triggers thumbnail generation for all images in a project that do not have one.',
+    request: {
+        params: z.object({
+            projectId: z.uuid(),
+        }),
+    },
+    responses: {
+        202: {
+            description: 'Thumbnail generation triggered.',
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        message: z.string(),
+                    }),
+                },
+            },
+        },
+        401: {
+            description: 'Unauthorized access.',
+            content: {
+                'application/json': {
+                schema: ErrorSchema,
+                },
+            },
+        },
+    },
+});
+
+const generateThumbnailsHandler: AppRouteHandler<typeof generateThumbnailsRoute> = async (c) => {
+    const { projectId } = c.req.param();
+    const user = c.get('user');
+
+    if (!user) {
+        return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    // Find images without thumbnails
+    const imagesWithoutThumbnails = await db
+        .select({ id: image.id })
+        .from(image)
+        .where(and(eq(image.projectId, projectId), isNull(image.thumbnailPath)));
+
+    if (imagesWithoutThumbnails.length === 0) {
+        return c.json({ message: 'All images already have thumbnails.' }, 202);
+    }
+
+    const jobId = randomUUID();
+    await db.insert(analysisJob).values({
+        id: jobId,
+        projectId,
+        userId: user.id,
+        jobType: 'thumbnail_generation',
+    });
+
+    const jobItemsToInsert: typeof analysisJobItem.$inferInsert[] = [];
+    const batchRequestRequests: { image_id: string; task_name: string; job_item_id: string }[] = [];
+
+    for (const img of imagesWithoutThumbnails) {
+        const jobItemId = randomUUID();
+        jobItemsToInsert.push({
+            id: jobItemId,
+            jobId: jobId,
+            imageId: img.id,
+        });
+        batchRequestRequests.push({
+            image_id: img.id,
+            task_name: 'thumbnail_generation',
+            job_item_id: jobItemId,
+        });
+    }
+
+    // Chunk inserts
+    const chunkSize = 100;
+    for (let i = 0; i < jobItemsToInsert.length; i += chunkSize) {
+        await db.insert(analysisJobItem).values(jobItemsToInsert.slice(i, i + chunkSize));
+    }
+
+    const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:8001';
+    fetch(`${aiServiceUrl}/batch-analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requests: batchRequestRequests }),
+    }).catch(err => console.error('Failed to trigger thumbnail generation:', err));
+
+    return c.json({ message: `Triggered thumbnail generation for ${imagesWithoutThumbnails.length} images.` }, 202);
+};
+
+app.openapi(generateThumbnailsRoute, generateThumbnailsHandler);
+
 
 const getProjectGroupsRoute = createRoute({
   method: 'get',
