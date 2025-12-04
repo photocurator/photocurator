@@ -137,7 +137,7 @@ class _CompareScreenState extends State<CompareScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(25.0),
-        color: Colors.white,
+        color: AppColors.wh1,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
@@ -186,6 +186,7 @@ class _CompareScreenState extends State<CompareScreen> {
     // Safety check
     if (images.isEmpty) {
       return Scaffold(
+        backgroundColor: AppColors.wh1,
         appBar: DetailAppBar(
           title: "비교 뷰",
           rightWidget: _buildDoneButton(context, deviceWidth),
@@ -202,7 +203,7 @@ class _CompareScreenState extends State<CompareScreen> {
     final bottomImage = images[_bottomIndex];
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.wh1,
       appBar: DetailAppBar(
         title: "비교 뷰",
         rightWidget: Row(
@@ -300,7 +301,7 @@ class _CompareScreenState extends State<CompareScreen> {
   Widget _buildThumbnailStrip(List<ImageItem> images, int selectedIndex, Function(int) onSelect) {
     return Container(
       height: 60,
-      color: Colors.white,
+      color: AppColors.wh1,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: images.length,

@@ -53,12 +53,12 @@ class _HighlightScreenState extends State<HighlightScreen> {
     _pageController = PageController(viewportFraction: viewportFraction);
 
     final imageProvider = context.watch<CurrentProjectImagesProvider>();
-    final bestShotImages = imageProvider.bestShotImages;
+    final allImages = imageProvider.allImages;
 
     final provider = context.watch<CurrentProjectImagesProvider>();
     final groups = provider.projectGroups;
 
-    final bannerImages = [...bestShotImages]..sort((a, b) =>
+    final bannerImages = [...allImages]..sort((a, b) =>
         (b.qualityScore?.musiq ?? 0).compareTo(a.qualityScore?.musiq ?? 0));
 
     final topImages = bannerImages.take(3).toList();
