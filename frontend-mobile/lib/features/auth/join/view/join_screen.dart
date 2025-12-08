@@ -69,6 +69,11 @@ class _JoinScreenState extends State<JoinScreen> {
 
   @override
   Widget build(BuildContext context) {
+    void handleBack() async {
+      // go_router 스택이 비었을 때 pop이 실패하므로 바로 온보딩으로 이동
+      GoRouter.of(context).go('/onboarding');
+    }
+
     // Provider로 ViewModel 주입 (상위에서 주입하지 않았을 경우를 대비해 여기서 생성)
     return ChangeNotifierProvider(
       create: (_) => JoinViewModel(initialState: widget.state),
@@ -121,13 +126,7 @@ class _JoinScreenState extends State<JoinScreen> {
                             BlendMode.srcIn,
                           ),
                         ),
-                        onPressed: () {
-                          if (context.canPop()) {
-                            context.pop();
-                          } else {
-                            context.go('/onboarding');
-                          }
-                        },
+                        onPressed: handleBack,
                       ),
                     ),
                   ),

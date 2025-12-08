@@ -743,10 +743,13 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _buildActionButton(String label, String iconPath, VoidCallback onTap) {
+  Widget _buildActionButton(
+      String label, String iconPath, Future<void> Function() onTap) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: onTap,
+      onTap: () async {
+        await onTap();
+      },
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [

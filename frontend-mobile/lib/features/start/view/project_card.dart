@@ -24,12 +24,14 @@ class ProjectCard extends StatefulWidget {
 class _ProjectCardState extends State<ProjectCard> {
   late final ProjectService _projectService;
   Future<Uint8List?>? _imageFuture;
+  Uint8List? _cachedImageBytes;
 
   @override
   void initState() {
     super.initState();
     _projectService = ProjectService();
     if (widget.project.coverImageUrl != null && widget.project.coverImageUrl!.isNotEmpty) {
+      _cachedImageBytes = _projectService.getCachedImageBytes(widget.project.coverImageUrl!);
       _imageFuture = _projectService.getImage(widget.project.coverImageUrl!);
     }
   }
@@ -40,9 +42,11 @@ class _ProjectCardState extends State<ProjectCard> {
     if (oldWidget.project.id != widget.project.id ||
         oldWidget.project.coverImageUrl != widget.project.coverImageUrl) {
       if (widget.project.coverImageUrl != null && widget.project.coverImageUrl!.isNotEmpty) {
+        _cachedImageBytes = _projectService.getCachedImageBytes(widget.project.coverImageUrl!);
         _imageFuture = _projectService.getImage(widget.project.coverImageUrl!);
       } else {
         _imageFuture = null;
+        _cachedImageBytes = null;
       }
       setState(() {});
     }
@@ -65,15 +69,16 @@ class _ProjectCardState extends State<ProjectCard> {
               if (_imageFuture != null)
                 FutureBuilder<Uint8List?>(
                   future: _imageFuture,
+                  initialData: _cachedImageBytes,
                   builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.done &&
-                        snapshot.hasData &&
-                        snapshot.data != null) {
+                    final imageBytes = snapshot.data;
+                    if (imageBytes != null) {
                       return Image.memory(
-                        snapshot.data!,
+                        imageBytes,
                         fit: BoxFit.cover,
                         width: double.infinity,
                         height: double.infinity,
+                        gaplessPlayback: true,
                       );
                     } else if (snapshot.hasError) {
                       debugPrint(

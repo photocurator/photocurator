@@ -93,6 +93,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    void handleBack() async {
+      // go_router stack이 비어 있을 때 pop이 크래시를 유발하므로 항상 온보딩으로 이동
+      GoRouter.of(context).go('/onboarding');
+    }
+
     // 1. ChangeNotifierProvider로 ViewModel 주입
     return ChangeNotifierProvider(
       create: (_) => LoginViewModel(),
@@ -115,13 +120,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       BlendMode.srcIn,
                     ),
                   ),
-                  onPressed: () {
-                    if (context.canPop()) {
-                      context.pop();
-                    } else {
-                      context.go('/onboarding');
-                    }
-                  },
+                  onPressed: handleBack,
                 ),
               ),
 

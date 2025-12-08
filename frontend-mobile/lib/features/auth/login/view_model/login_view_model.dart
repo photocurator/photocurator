@@ -32,8 +32,20 @@ class LoginViewModel extends ChangeNotifier {
         password: password,
       );
 
-      // 에러가 발생하지 않고 여기까지 코드가 도달했다면 '성공'입니다.
-      return null;
+      // 실제 세션/유저가 존재하는지 한 번 더 확인 (엣지 케이스 방지)
+      final sessionRes = await FlutterBetterAuth.client.getSession();
+      final session = sessionRes.data?.session;
+      final user = sessionRes.data?.user;
+      final hasValidSession = session != null &&
+          session.token.isNotEmpty &&
+          session.expiresAt.isAfter(DateTime.now()) &&
+          user != null;
+      if (hasValidSession) {
+        return null;
+      }
+      // 세션이 없으면 강제로 실패 처리
+      await FlutterBetterAuth.client.signOut();
+      return '로그인 실패';
 
     } catch (e) {
       // 실패 시 여기서 잡힙니다.

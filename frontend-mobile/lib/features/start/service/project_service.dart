@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_better_auth/flutter_better_auth.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:path/path.dart' as path;
@@ -53,6 +54,9 @@ class Project {
 class ProjectService {
   late Dio _dio;
   static String? baseUrl;
+  // Cache image futures so scrolled-off cards don't re-fetch thumbnails.
+  static final Map<String, Future<Uint8List?>> _imageCache = {};
+  static final Map<String, Uint8List?> _imageBytesCache = {};
 
   ProjectService() {
     _dio = FlutterBetterAuth.dioClient;
@@ -155,7 +159,34 @@ class ProjectService {
     }
   }
 
-  Future<Uint8List?> getImage(String imageUrl) async {
+  Future<Uint8List?> getImage(String imageUrl) {
+    final cachedBytes = _imageBytesCache[imageUrl];
+    if (cachedBytes != null) {
+      return SynchronousFuture(cachedBytes);
+    }
+
+    final cachedFuture = _imageCache[imageUrl];
+    if (cachedFuture != null) {
+      return cachedFuture;
+    }
+
+    final future = _fetchImage(imageUrl);
+    _imageCache[imageUrl] = future;
+
+    // If the request fails, drop it from cache so we can retry later.
+    future.then((bytes) {
+      if (bytes != null) {
+        _imageBytesCache[imageUrl] = bytes;
+      }
+      _imageCache.remove(imageUrl);
+    }).catchError((_) {
+      _imageCache.remove(imageUrl);
+    });
+
+    return future;
+  }
+
+  Future<Uint8List?> _fetchImage(String imageUrl) async {
     try {
       final response = await _dio.get<Uint8List>(
         imageUrl,
@@ -171,5 +202,9 @@ class ProjectService {
       print('Error getting image: $e');
       return null;
     }
+  }
+
+  Uint8List? getCachedImageBytes(String imageUrl) {
+    return _imageBytesCache[imageUrl];
   }
 }

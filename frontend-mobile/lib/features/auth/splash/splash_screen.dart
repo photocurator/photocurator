@@ -216,9 +216,13 @@ class _LastScreenState extends State<LastScreen> {
       // getSession()은 성공하면 데이터를 반환하고, 실패하면(세션 없음 등) 에러를 던집니다.
       final data = await client.getSession();
 
-      // 여기까지 오면 세션 정보가 있다는 뜻이므로 유효성 검사
-      final hasValidSession = data.data!.session.token.isNotEmpty &&
-          data.data!.session.expiresAt.isAfter(DateTime.now());
+      // 세션/유저 정보를 모두 확인해야 로그인 상태로 간주
+      final session = data.data?.session;
+      final user = data.data?.user;
+      final hasValidSession = session != null &&
+          session.token.isNotEmpty &&
+          session.expiresAt.isAfter(DateTime.now()) &&
+          user != null;
 
       if (!mounted) return;
 
